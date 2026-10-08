@@ -31,26 +31,44 @@ done > "$tmp/exists"
 seen="$CR_STATE/seen"
 [ -f "$seen" ] || seen=/dev/null
 
-awk -F'\t' \
-  -v Y=$'\033[33m' -v G=$'\033[32m' -v R=$'\033[31m' -v C=$'\033[36m' -v D=$'\033[2m' -v N=$'\033[0m' '
+# Rows grouped by turn under a title row with an empty path ("\t latest turn").
+# File row display: " <●> <M|A|D> <+add> <−del>  <name>  <dir>", stat columns right-aligned.
+awk -F'\t' -v cur="$(cr_turn)" \
+  -v Y=$'\033[33m' -v G=$'\033[32m' -v R=$'\033[31m' -v B=$'\033[34m' -v D=$'\033[2m' -v N=$'\033[0m' '
+  function pad(n) { return sprintf("%" n "s", "") }
   FILENAME == ARGV[1] { inbase[$0] = 1; next }
   FILENAME == ARGV[2] { add[$3] = $1; del[$3] = $2; changed[$3] = 1; next }
   FILENAME == ARGV[3] { exists[$0] = 1; next }
   FILENAME == ARGV[4] { seen[$2] = $1; next }
   {
-    line = $1; turn = $2; path = $3; tag = ""
+    line = $1; turn = $2; path = $3
     if (path in inbase) {
       if (!(path in changed)) next
-      a = add[path]; d = del[path]
-      if (!(path in exists)) tag = "deleted"
+      a = add[path]; d = del[path]; st = (path in exists) ? Y "M" : R "D"
     } else {
       if (!(path in exists)) next
       n = 0
       while ((r = (getline l < path)) > 0) n++
       close(path)
       if (r < 0) next
-      a = n; d = 0; tag = "new"
+      a = n; d = 0; st = G "A"
     }
-    mark = (line > seen[path] + 0) ? Y "●" N : " "
-    printf "%s\t%s %s%s%s  %s  %s+%s%s %s−%s%s%s\n", path, mark, D, turn, N, path, G, a, N, R, d, N, (tag != "" ? "  " C tag N : "")
+    k++; P[k] = path; T[k] = turn; S[k] = st N; A[k] = a; Dl[k] = d
+    U[k] = (line > seen[path] + 0) ? B "●" N : " "
+    if (length(a) > wa) wa = length(a)
+    if (length(d) > wd) wd = length(d)
+  }
+  END {
+    for (i = 1; i <= k; i++) {
+      if (i == 1 || T[i] != T[i - 1]) {
+        ago = cur - T[i]
+        title = ago <= 0 ? "latest turn" : ago == 1 ? "1 turn ago" : ago " turns ago"
+        printf "\t %s%s%s\n", D, title, N
+      }
+      name = P[i]; dir = ""
+      if (match(P[i], /.*\//)) { dir = "  " D substr(P[i], 1, RLENGTH - 1) N; name = substr(P[i], RLENGTH + 1) }
+      ca = A[i] + 0 ? G : D; cd = Dl[i] + 0 ? R : D
+      printf "%s\t %s %s %s%s+%s%s %s%s−%s%s  %s%s\n", P[i], U[i], S[i],
+        pad(wa - length(A[i])), ca, A[i], N, pad(wd - length(Dl[i])), cd, Dl[i], N, name, dir
+    }
   }' "$tmp/inbase" "$tmp/numstat" "$tmp/exists" "$seen" "$tmp/rows"

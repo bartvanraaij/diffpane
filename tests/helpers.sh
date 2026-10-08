@@ -50,11 +50,11 @@ state() { echo "$(git -C "$1" rev-parse --absolute-git-dir)/claude-review"; }
 # touched <repo>: paths in the touched log, in log order.
 touched() { cut -f2 "$(state "$1")/touched" 2>/dev/null; }
 
-# rows <repo>: list paths (field 1) in display order.
-rows() { (cd "$1" && "$CR_HOME/lib/list") | cut -f1; }
+# rows <repo>: list paths (field 1) in display order, turn title rows left out.
+rows() { (cd "$1" && "$CR_HOME/lib/list") | cut -f1 | grep -v '^$'; }
 
-# display <repo>: list display column without ANSI codes.
-display() { (cd "$1" && "$CR_HOME/lib/list") | cut -f2 | sed $'s/\033\\[[0-9;]*m//g'; }
+# display <repo>: list display column without ANSI codes and the 1-space left padding.
+display() { (cd "$1" && "$CR_HOME/lib/list") | cut -f2 | sed $'s/\033\\[[0-9;]*m//g' | sed 's/^ //'; }
 
 finish() {
   if [ "$FAILS" -eq 0 ]; then echo "all passed"; else echo "$FAILS failed"; exit 1; fi

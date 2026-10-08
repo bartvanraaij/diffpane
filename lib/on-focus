@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # fzf focus handler. Usage: on-focus <index> <path>  (index = fzf's zero-based {n})
-# Pauses follow when the user moves off the newest row; marks the focused file seen.
+# Skips turn title rows (empty path) in the direction of travel; pauses follow when
+# the user moves off the newest file (row index 1); marks the focused file seen.
 . "$(dirname "$0")/common.sh"
 
 cr_init "$PWD" || exit 0
 n="$1" path="$2"
-[ -n "$path" ] || exit 0
+[ -n "$n" ] || exit 0
+last=$(cat "$CR_STATE/view.focus" 2>/dev/null)
+echo "$n" > "$CR_STATE/view.focus"
+if [ -z "$path" ]; then
+  if [ "$n" -eq 0 ] || [ "$n" -gt "${last:-0}" ]; then echo down; else echo up; fi
+  exit 0
+fi
 actions=""
 
-if [ "$(cat "$CR_STATE/follow" 2>/dev/null)" = on ] && [ "$n" != 0 ]; then
+if [ "$(cat "$CR_STATE/follow" 2>/dev/null)" = on ] && [ "$n" != 1 ]; then
   echo paused > "$CR_STATE/follow"
   actions='transform-header($CR_LIB/header)'
 fi

@@ -13,13 +13,16 @@ base=$(cr_base)
   else
     cr_git --no-pager diff --no-index -- /dev/null "$path"
   fi
-} | if [ "$(cr_theme)" = light ]; then  # GitHub light diff colors
-  delta --light --plus-style='syntax #dafbe1' --plus-emph-style='syntax #aceebb' \
-    --minus-style='syntax #ffebe9' --minus-emph-style='syntax #ffcecb' \
+} | {
+  # No file header: the list already shows which file this is.
+  set -- --file-style=omit --hunk-header-style=omit \
     --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
-else  # strong backgrounds; claude-review theme = Monokai Extended with lighter comments
-  delta --dark --syntax-theme=claude-review \
-    --plus-style='syntax #2a6a3a' --plus-emph-style='syntax #3f9a55' \
-    --minus-style='syntax #7a2a32' --minus-emph-style='syntax #b03a46' \
-    --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
-fi
+  if [ "$(cr_theme)" = light ]; then  # GitHub light diff colors
+    delta --light "$@" --plus-style='syntax #dafbe1' --plus-emph-style='syntax #aceebb' \
+      --minus-style='syntax #ffebe9' --minus-emph-style='syntax #ffcecb'
+  else  # strong backgrounds; claude-review theme = Monokai Extended with lighter comments
+    delta --dark "$@" --syntax-theme=claude-review \
+      --plus-style='syntax #2a6a3a' --plus-emph-style='syntax #3f9a55' \
+      --minus-style='syntax #7a2a32' --minus-emph-style='syntax #b03a46'
+  fi
+} | sed '/./,$!d'  # drop leading empty lines

@@ -41,6 +41,8 @@ else
   open='execute(${EDITOR:-nvim} {1})'
 fi
 
+[ -n "$TMUX" ] && tmux select-pane -t "$TMUX_PANE" -T "Claude Review"
+
 rm -f "$restart"
 while :; do
   # After a theme restart, keep the file the user was on (follow picks its own).
@@ -50,17 +52,21 @@ while :; do
     [ -n "$idx" ] && refocus="load:pos($idx)+unbind(load)"  # once, after input is read
   fi
   rm -f "$restart"
-  colors=$(cr_theme)
-  [ "$colors" = light ] && colors="light,bg+:#eaeef2"  # default light bg+ (251) is too dark
+  # header:-1 lets the header's own ANSI styling show. Light defaults are too
+  # dark (bg+ 251) or olive (info 101: preview scroll indicator).
+  colors="$(cr_theme),header:-1"
+  [ "$(cr_theme)" = light ] && colors="$colors,bg+:#eaeef2,info:#6e7781"
   fzf < "$CR_STATE/view.list" \
     --listen="$sock" \
     --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$colors" \
+    --header-border=bottom --pointer='' --marker='' --gutter=' ' \
     --delimiter='\t' --with-nth=2 \
     --preview '$CR_LIB/preview {1}' \
     --preview-window 'right,70%,border-left' \
     --bind 'start:transform-header($CR_LIB/header)' \
     --bind "$refocus" \
     --bind 'result:transform-header($CR_LIB/header)' \
+    --bind 'resize:transform-header($CR_LIB/header)' \
     --bind 'focus:transform($CR_LIB/on-focus {n} {1})' \
     --bind 'j:down,k:up' \
     --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \

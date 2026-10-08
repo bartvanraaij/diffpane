@@ -21,17 +21,19 @@ chmod +x "$TMPROOT/ed"
 h="$TMPROOT/home"; mkdir -p "$h/.config/ghostty"
 echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 $T new-session -d -s crtest -x 160 -y 40 -c "$r" "HOME=$h EDITOR=$TMPROOT/ed $CR_HOME/claude-review"
-wait_for "smoke · 0 files" && assert_eq ok ok "header shows empty state" || assert_eq ok fail "header shows empty state"
+wait_for "0 files changed" && assert_eq ok ok "header shows empty state" || assert_eq ok fail "header shows empty state"
+assert_eq "Claude Review" "$($T display -p -t crtest '#{pane_title}')" "pane title"
 
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "live-change\n" >> a.txt'
 wait_for "a.txt" && assert_eq ok ok "hook ping shows a.txt" || assert_eq ok fail "hook ping shows a.txt"
 wait_for "live-change" && assert_eq ok ok "preview shows the diff" || assert_eq ok fail "preview shows the diff"
+assert_eq "0" "$($T capture-pane -p -t crtest | grep -c '▌')" "no pointer/gutter rail"
 
 out=$(cd "$r" && "$CR_HOME/claude-review" 2>&1; echo "rc=$?")
 assert_eq "yes" "$(echo "$out" | grep -q 'already running' && echo yes)" "second viewer refuses to start"
 
-tool "$r" t2 sh -c 'printf "route\n" > "posts.\$id.txt"'
+tool "$r" t2 sh -c 'seq 60 > "posts.\$id.txt"'
 wait_for 'posts.\$id.txt' || true
 $T send-keys -t crtest Enter
 for i in $(seq 30); do [ -s "$TMPROOT/opened" ] && break; sleep 0.1; done
@@ -43,6 +45,8 @@ assert_eq "yes" "$([ "$(sel '48;5;236')" -gt 0 ] && echo yes)" "dark theme: dark
 echo "theme = github-light-bart" > "$h/.config/ghostty/theme.ghostty"
 for i in $(seq 60); do [ "$(sel '48;2;234;238;242')" -gt 0 ] && break; sleep 0.1; done
 assert_eq "yes" "$([ "$(sel '48;2;234;238;242')" -gt 0 ] && [ "$(sel '48;5;236')" -eq 0 ] && echo yes)" "theme switch restyles the list live"
+wait_for '1/6[0-9]' || true  # preview scroll indicator rendered
+assert_eq "0" "$($T capture-pane -p -e -t crtest | grep -c '38;5;101')" "light: no olive scroll indicator"
 wait_for 'posts.\$id.txt' && assert_eq ok ok "list survives the restart" || assert_eq ok fail "list survives the restart"
 # Paused follow: the file the user moved to stays selected across a restart.
 $T send-keys -t crtest j
@@ -51,6 +55,10 @@ focused() { $T capture-pane -p -e -t crtest | grep -- "$1" | grep -o 'a\.txt\|po
 echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 for i in $(seq 60); do [ "$(sel '48;5;236')" -gt 0 ] && break; sleep 0.1; done
 assert_eq "a.txt" "$(focused '48;5;236')" "paused follow keeps the selected file across a theme switch"
+
+# k from the newest file lands on its turn title and bounces back down.
+$T send-keys -t crtest k; sleep 0.3; $T send-keys -t crtest k; sleep 0.5
+assert_eq 'posts.$id.txt' "$(focused '48;5;236')" "turn title is skipped"
 
 git -C "$r" add -A && git -C "$r" commit -qm done
 wait_for "0 files" && assert_eq ok ok "ticker picks up user commit" || assert_eq ok fail "ticker picks up user commit"

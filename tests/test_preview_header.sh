@@ -12,12 +12,14 @@ assert_eq "yes" "$(echo "$out" | grep -q modified-line && echo yes)" "modified f
 out=$(cd "$r" && "$CR_HOME/lib/preview" fresh.txt | strip)
 assert_eq "yes" "$(echo "$out" | grep -q brand-new-line && echo yes)" "untracked file shows content"
 out=$(cd "$r" && "$CR_HOME/lib/preview" c.txt | strip)
-assert_eq "yes" "$(echo "$out" | grep -q c.txt && echo yes)" "deleted file shows a diff"
+assert_eq "yes" "$(echo "$out" | grep -q '│c' && echo yes)" "deleted file shows its removed line"
 r2=$(mkrepo prevempty --empty)
 printf 'first-ever\n' > "$r2/x.txt"
 out=$(cd "$r2" && "$CR_HOME/lib/preview" x.txt | strip)
 assert_eq "yes" "$(echo "$out" | grep -q first-ever && echo yes)" "repo without commits shows new file"
 assert_eq "" "$(cd "$r" && "$CR_HOME/lib/preview" '')" "empty path prints nothing"
+assert_eq "no" "$(cd "$r" && "$CR_HOME/lib/preview" a.txt | head -1 | strip | grep -q '^$' && echo yes || echo no)" "no blank first line"
+assert_eq "0" "$(cd "$r" && "$CR_HOME/lib/preview" a.txt | strip | grep -c 'a\.txt')" "no file header (the list shows the name)"
 
 echo "theme"
 h="$TMPROOT/home"; mkdir -p "$h/.config/ghostty"
@@ -42,14 +44,17 @@ r=$(mkrepo head)
 st=$(state "$r"); mkdir -p "$st"
 : > "$st/view.list"
 sha=$(git -C "$r" rev-parse --short HEAD)
-assert_eq "head · 0 files
-turn 0 · follow ○
-No Claude changes since $sha init" "$(cd "$r" && "$CR_HOME/lib/header")" "empty state"
-printf 'a.txt\tx\nb.txt\ty\n' > "$st/view.list"
-echo on > "$st/follow"; echo 3 > "$st/turn"
-assert_eq "head · 2 files
-turn 3 · follow ●" "$(cd "$r" && "$CR_HOME/lib/header")" "with files, follow on"
+hdr() { (cd "$r" && FZF_COLUMNS=100 "$CR_HOME/lib/header") | strip; }  # list column: 30 wide
+assert_eq " head         0 files changed
+ 0 turns         ○ follow off
+ No Claude changes since $sha init" "$(hdr)" "empty state, counts right-aligned"
+printf '\tlatest turn\na.txt\tx\n' > "$st/view.list"
+echo on > "$st/follow"
+assert_eq " head          1 file changed
+ 1 turn           ● following" "$(hdr)" "singular, follow on"
+printf '\tlatest turn\na.txt\tx\n\t1 turn ago\nb.txt\ty\n' > "$st/view.list"
 echo paused > "$st/follow"
-assert_eq "yes" "$(cd "$r" && "$CR_HOME/lib/header" | grep -q 'follow ⏸' && echo yes)" "paused symbol"
+assert_eq " head         2 files changed
+ 2 turns             ⏸ paused" "$(hdr)" "title rows are not files, paused"
 
 finish

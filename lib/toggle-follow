@@ -8,5 +8,5 @@ if [ "$(cat "$CR_STATE/follow" 2>/dev/null)" = on ]; then
   echo 'transform-header($CR_LIB/header)'
 else
   echo on > "$CR_STATE/follow"
-  echo 'first+transform-header($CR_LIB/header)'
+  echo 'pos(2)+transform-header($CR_LIB/header)'
 fi

@@ -90,8 +90,10 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
    No-op outside a git work tree.
 2. **`list`** — prints the viewer rows. Applies the reset rule. Dedups
    `touched` by path keeping the newest entry, sorts newest first, and drops
-   paths whose diff vs HEAD is now empty (reverted). Row format:
-   `<marker> <turn>  <path>  +<add> −<del>  [new|deleted]`.
+   paths whose diff vs HEAD is now empty (reverted). Rows are grouped under
+   turn title rows (`latest turn`, `N turns ago`; empty path, skipped when
+   navigating). File rows: `<●> <M|A|D> +<add> −<del>  <name>  <dir>`, stat
+   columns right-aligned.
    Untracked new files are diffed against `/dev/null`.
 3. **`claude-review`** — the viewer. Runs fzf with:
    - list left (~30%), preview right (`--preview-window=right,70%`)
@@ -101,7 +103,9 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
      different repos don't cross
    - periodic reload fallback (a few seconds) to catch commits made outside
      Claude
-   - header: `claude-review · <repo> · <n> files · turn <t> · follow ●|⏸|○`
+   - header: `<repo>  <n> files changed` / `<t> turns  ● following|⏸ paused|○ follow off`,
+     counts right-aligned; diff pane has no file header (the list shows it)
+   - tmux pane title `Claude Review`
    - empty state: `No Claude changes since <short sha> <subject>`
 4. **`layout`** — tmux helper: opens a new window in the current pane's
    directory with `claude-review` in the left 67% and `claude` in the right

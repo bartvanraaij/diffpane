@@ -98,3 +98,11 @@ cr_ping() {
   ( curl -s --max-time 1 --unix-socket "$sock" http://localhost \
       -d 'transform($CR_LIB/on-change {1})' >/dev/null 2>&1 & )
 }
+
+# light|dark. delta and fzf can't detect the terminal background inside fzf
+# (no tty), so follow the `theme` shell function's Ghostty file, like tmux.conf.
+cr_theme() {
+  if [ -n "$CR_THEME" ]; then echo "$CR_THEME"
+  elif grep -qs github-light-bart "$HOME/.config/ghostty/theme.ghostty"; then echo light
+  else echo dark; fi
+}

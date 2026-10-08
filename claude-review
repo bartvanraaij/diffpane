@@ -37,7 +37,7 @@ fi
 
 fzf < "$CR_STATE/view.list" \
   --listen="$sock" \
-  --ansi --no-input --no-sort --layout=reverse --info=hidden \
+  --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$(cr_theme)" \
   --delimiter='\t' --with-nth=2 \
   --preview '$CR_LIB/preview {1}' \
   --preview-window 'right,70%,border-left' \

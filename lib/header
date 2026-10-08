@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Viewer header: repo, file count, turn, follow state; empty-state hint.
+. "$(dirname "$0")/common.sh"
+
+cr_init "$PWD" || exit 0
+n=$(grep -c . < "$CR_STATE/view.list" 2>/dev/null)
+n=${n:-0}
+case "$(cat "$CR_STATE/follow" 2>/dev/null)" in
+  on) follow="follow ●" ;;
+  paused) follow="follow ⏸" ;;
+  *) follow="follow ○" ;;
+esac
+printf 'claude-review · %s · %s files · turn %s · %s\n' "$(basename "$CR_ROOT")" "$n" "$(cr_turn)" "$follow"
+if [ "$n" -eq 0 ]; then
+  printf 'No Claude changes since %s\n' "$(cr_git log -1 --format='%h %s' 2>/dev/null || echo 'repo start')"
+fi

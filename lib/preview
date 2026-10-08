@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Inline diff of one file against HEAD, rendered by delta. Usage: preview <path>
+. "$(dirname "$0")/common.sh"
+
+cr_init "$PWD" || exit 0
+path="$1"
+[ -n "$path" ] || exit 0
+base=$(cr_base)
+
+{
+  if cr_git cat-file -e "$base:$path" 2>/dev/null; then
+    cr_git --no-pager diff "$base" -- "$path"
+  else
+    cr_git --no-pager diff --no-index -- /dev/null "$path"
+  fi
+} | delta --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"

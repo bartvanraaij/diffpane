@@ -28,11 +28,11 @@ assert_eq "light" "$(theme_of)" "light ghostty theme: light"
 echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 assert_eq "dark" "$(theme_of)" "dark ghostty theme: dark"
 assert_eq "light" "$(CR_THEME=light theme_of)" "CR_THEME overrides"
-# added-line background: GitHub light #dafbe1, GitHub dark #1f3a2a (24-bit escapes)
+# added-line background: GitHub light #dafbe1, GitHub dark #1e4a2c (24-bit escapes)
 out=$(cd "$r" && CR_THEME=light "$CR_HOME/lib/preview" a.txt)
 assert_eq "yes" "$(echo "$out" | grep -q '48;2;218;251;225' && echo yes)" "light preview: light green added bg"
 out=$(cd "$r" && CR_THEME=dark "$CR_HOME/lib/preview" a.txt)
-assert_eq "yes" "$(echo "$out" | grep -q '48;2;31;58;42' && echo yes)" "dark preview: stronger green added bg"
+assert_eq "yes" "$(echo "$out" | grep -q '48;2;30;74;44' && echo yes)" "dark preview: stronger green added bg"
 
 echo "header"
 r=$(mkrepo head)

@@ -18,7 +18,7 @@ base=$(cr_base)
     --minus-style='syntax #ffebe9' --minus-emph-style='syntax #ffcecb' \
     --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
 else  # delta's dark defaults are too faint
-  delta --dark --plus-style='syntax #1f3a2a' --plus-emph-style='syntax #2b5c3a' \
-    --minus-style='syntax #3d1f22' --minus-emph-style='syntax #6b2a2e' \
+  delta --dark --plus-style='syntax #1e4a2c' --plus-emph-style='syntax #2f7040' \
+    --minus-style='syntax #5a2328' --minus-emph-style='syntax #8a3038' \
     --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
 fi

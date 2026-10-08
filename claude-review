@@ -66,7 +66,7 @@ while :; do
     --bind 'start:transform-header($CR_LIB/header)' \
     --bind "$refocus" \
     --bind 'result:transform-header($CR_LIB/header)' \
-    --bind 'resize:transform-header($CR_LIB/header)' \
+    --bind 'resize:transform-header($CR_LIB/header)+transform($CR_LIB/on-change {1} --force)' \
     --bind 'focus:transform($CR_LIB/on-focus {n} {1})' \
     --bind 'j:down,k:up' \
     --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \

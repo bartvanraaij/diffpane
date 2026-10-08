@@ -90,10 +90,9 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
    No-op outside a git work tree.
 2. **`list`** — prints the viewer rows. Applies the reset rule. Dedups
    `touched` by path keeping the newest entry, sorts newest first, and drops
-   paths whose diff vs HEAD is now empty (reverted). Rows are grouped under
-   turn title rows (`latest turn`, `N turns ago`; empty path, skipped when
-   navigating). File rows: `<●> <M|A|D> +<add> −<del>  <name>  <dir>`, stat
-   columns right-aligned.
+   paths whose diff vs HEAD is now empty (reverted). Turns are separated by
+   divider rows (empty path, skipped when navigating). File rows:
+   `<M|A|D> +<add> −<del>  <name>[ ●]  <dir>`, stat columns right-aligned.
    Untracked new files are diffed against `/dev/null`.
 3. **`claude-review`** — the viewer. Runs fzf with:
    - list left (~30%), preview right (`--preview-window=right,70%`)

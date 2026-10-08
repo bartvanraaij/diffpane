@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # fzf transform: reload the list if it changed. Usage: on-change <focused-path> [--force]
-# Follow on: jump to newest file (row 2, below its turn title). Otherwise keep focus on the same file.
+# Follow on: jump to newest. Otherwise keep focus on the same file.
 . "$(dirname "$0")/common.sh"
 
 cr_init "$PWD" || exit 0
@@ -9,12 +9,20 @@ new=$("$CR_LIB/list")
 if [ "$2" != --force ] && [ "$new" = "$(cat "$CR_STATE/view.list" 2>/dev/null)" ]; then
   exit 0
 fi
+same_rows=no
+[ "$(printf '%s\n' "$new" | cut -f1)" = "$(cut -f1 "$CR_STATE/view.list" 2>/dev/null)" ] && same_rows=yes
 if [ -n "$new" ]; then printf '%s\n' "$new" > "$CR_STATE/view.list"; else : > "$CR_STATE/view.list"; fi
 
 reload='reload-sync(cat "$CR_STATE/view.list")'
+# Same rows in the same order (only marks/stats changed): fzf keeps the cursor
+# by itself. Repositioning would undo a keypress that raced this reload.
+if [ "$same_rows" = yes ]; then
+  echo "$reload"
+  exit 0
+fi
 if [ "$(cat "$CR_STATE/follow" 2>/dev/null)" = on ]; then
-  echo "$reload+pos(2)"
+  echo "$reload+first"
   exit 0
 fi
 idx=$(cut -f1 "$CR_STATE/view.list" | grep -nxF -- "$focused" | head -1 | cut -d: -f1)
-if [ -n "$idx" ]; then echo "$reload+pos($idx)"; else echo "$reload+pos(2)"; fi
+if [ -n "$idx" ]; then echo "$reload+pos($idx)"; else echo "$reload+first"; fi

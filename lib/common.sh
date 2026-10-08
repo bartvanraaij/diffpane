@@ -106,3 +106,10 @@ cr_theme() {
   elif grep -qs github-light-bart "$HOME/.config/ghostty/theme.ghostty"; then echo light
   else echo dark; fi
 }
+
+# Usable width of the viewer's list column: fzf's width minus the 70% preview,
+# minus one column kept free next to the preview border.
+cr_list_width() {
+  local cols=${FZF_COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+  echo $((cols - cols * 70 / 100 - 1))
+}

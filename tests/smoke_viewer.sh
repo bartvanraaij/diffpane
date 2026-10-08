@@ -33,6 +33,7 @@ assert_eq "0" "$($T capture-pane -p -t crtest | grep -c '▌')" "no pointer/gutt
 out=$(cd "$r" && "$CR_HOME/claude-review" 2>&1; echo "rc=$?")
 assert_eq "yes" "$(echo "$out" | grep -q 'already running' && echo yes)" "second viewer refuses to start"
 
+hook "$r" UserPromptSubmit >/dev/null   # second turn: a divider between posts and a.txt
 tool "$r" t2 sh -c 'seq 60 > "posts.\$id.txt"'
 wait_for 'posts.\$id.txt' || true
 $T send-keys -t crtest Enter
@@ -56,9 +57,9 @@ echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 for i in $(seq 60); do [ "$(sel '48;5;236')" -gt 0 ] && break; sleep 0.1; done
 assert_eq "a.txt" "$(focused '48;5;236')" "paused follow keeps the selected file across a theme switch"
 
-# k from the newest file lands on its turn title and bounces back down.
-$T send-keys -t crtest k; sleep 0.3; $T send-keys -t crtest k; sleep 0.5
-assert_eq 'posts.$id.txt' "$(focused '48;5;236')" "turn title is skipped"
+# j above went posts -> divider -> a.txt; k goes back over the divider.
+$T send-keys -t crtest k; sleep 0.5
+assert_eq 'posts.$id.txt' "$(focused '48;5;236')" "divider is skipped going up"
 
 git -C "$r" add -A && git -C "$r" commit -qm done
 wait_for "0 files" && assert_eq ok ok "ticker picks up user commit" || assert_eq ok fail "ticker picks up user commit"

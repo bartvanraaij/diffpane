@@ -53,8 +53,8 @@ touched() { cut -f2 "$(state "$1")/touched" 2>/dev/null; }
 # rows <repo>: list paths (field 1) in display order, turn title rows left out.
 rows() { (cd "$1" && "$CR_HOME/lib/list") | cut -f1 | grep -v '^$'; }
 
-# display <repo>: list display column without ANSI codes and the 1-space left padding.
-display() { (cd "$1" && "$CR_HOME/lib/list") | cut -f2 | sed $'s/\033\\[[0-9;]*m//g' | sed 's/^ //'; }
+# display <repo>: list display column without ANSI codes. 100 columns: list is 30 wide.
+display() { (cd "$1" && FZF_COLUMNS=100 "$CR_HOME/lib/list") | cut -f2 | sed $'s/\033\\[[0-9;]*m//g'; }
 
 finish() {
   if [ "$FAILS" -eq 0 ]; then echo "all passed"; else echo "$FAILS failed"; exit 1; fi

@@ -10,7 +10,8 @@ case "$(cat "$CR_STATE/follow" 2>/dev/null)" in
   paused) follow="follow ⏸" ;;
   *) follow="follow ○" ;;
 esac
-printf 'claude-review · %s · %s files · turn %s · %s\n' "$(basename "$CR_ROOT")" "$n" "$(cr_turn)" "$follow"
+# Two short lines: the list column is only ~30% of the pane.
+printf '%s · %s files\nturn %s · %s\n' "$(basename "$CR_ROOT")" "$n" "$(cr_turn)" "$follow"
 if [ "$n" -eq 0 ]; then
   printf 'No Claude changes since %s\n' "$(cr_git log -1 --format='%h %s' 2>/dev/null || echo 'repo start')"
 fi

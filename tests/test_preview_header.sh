@@ -24,11 +24,13 @@ r=$(mkrepo head)
 st=$(state "$r"); mkdir -p "$st"
 : > "$st/view.list"
 sha=$(git -C "$r" rev-parse --short HEAD)
-assert_eq "claude-review · head · 0 files · turn 0 · follow ○
+assert_eq "head · 0 files
+turn 0 · follow ○
 No Claude changes since $sha init" "$(cd "$r" && "$CR_HOME/lib/header")" "empty state"
 printf 'a.txt\tx\nb.txt\ty\n' > "$st/view.list"
 echo on > "$st/follow"; echo 3 > "$st/turn"
-assert_eq "claude-review · head · 2 files · turn 3 · follow ●" "$(cd "$r" && "$CR_HOME/lib/header")" "with files, follow on"
+assert_eq "head · 2 files
+turn 3 · follow ●" "$(cd "$r" && "$CR_HOME/lib/header")" "with files, follow on"
 echo paused > "$st/follow"
 assert_eq "yes" "$(cd "$r" && "$CR_HOME/lib/header" | grep -q 'follow ⏸' && echo yes)" "paused symbol"
 

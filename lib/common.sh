@@ -73,9 +73,19 @@ cr_record_new() {
   done
 }
 
+# Viewer socket path. Kept short: macOS caps unix socket paths at 104 bytes,
+# which a deep repo path under .git would exceed.
+cr_sock() {
+  local dir="/tmp/claude-review-$(id -u)"
+  mkdir -p "$dir" && chmod 700 "$dir"
+  echo "$dir/$(printf '%s' "$CR_STATE" | shasum | cut -c1-12).sock"
+}
+
 # Ask a running viewer to refresh. Never blocks. $CR_LIB and {1} expand inside fzf.
 cr_ping() {
-  [ -S "$CR_STATE/fzf.sock" ] || return 0
-  ( curl -s --max-time 1 --unix-socket "$CR_STATE/fzf.sock" http://localhost \
+  local sock
+  sock=$(cr_sock)
+  [ -S "$sock" ] || return 0
+  ( curl -s --max-time 1 --unix-socket "$sock" http://localhost \
       -d 'transform($CR_LIB/on-change {1})' >/dev/null 2>&1 & )
 }

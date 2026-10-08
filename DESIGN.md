@@ -104,7 +104,7 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
      Claude
    - header: `<repo>  ●|⏸|○` (follow on, paused, off) / `<t> turns  <n> files changed`,
      counts right-aligned; diff pane has no file header (the list shows it)
-   - tmux pane title `Claude Review`
+   - tmux pane title `Claude Diff`
    - empty state: `No Claude changes since <short sha> <subject>`
 4. **`layout`** — tmux helper: opens a new window in the current pane's
    directory with `claude-review` in the left 67% and `claude` in the right

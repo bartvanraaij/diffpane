@@ -41,7 +41,7 @@ else
   open='execute(${EDITOR:-nvim} {1})'
 fi
 
-[ -n "$TMUX" ] && tmux select-pane -t "$TMUX_PANE" -T "Claude Review"
+[ -n "$TMUX" ] && tmux select-pane -t "$TMUX_PANE" -T "Claude Diff"
 
 rm -f "$restart"
 while :; do

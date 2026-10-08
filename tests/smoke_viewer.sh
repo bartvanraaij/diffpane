@@ -22,7 +22,7 @@ h="$TMPROOT/home"; mkdir -p "$h/.config/ghostty"
 echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 $T new-session -d -s crtest -x 160 -y 40 -c "$r" "HOME=$h EDITOR=$TMPROOT/ed $CR_HOME/claude-review"
 wait_for "No Claude changes since" && assert_eq ok ok "header shows empty state" || assert_eq ok fail "header shows empty state"
-assert_eq "Claude Review" "$($T display -p -t crtest '#{pane_title}')" "pane title"
+assert_eq "Claude Diff" "$($T display -p -t crtest '#{pane_title}')" "pane title"
 
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "live-change\n" >> a.txt'

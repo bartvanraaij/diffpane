@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Claude Code hook entry point: UserPromptSubmit, PreToolUse, PostToolUse,
+# PostToolUseFailure, Stop. Records which files Claude changed, however it
+# changed them. Must never block, fail or print.
+. "$(dirname "$0")/lib/common.sh"
+
+READONLY_TOOLS=" Read Grep Glob LS WebFetch WebSearch TodoWrite ToolSearch Skill AskUserQuestion TaskCreate TaskGet TaskList TaskUpdate TaskOutput "
+
+main() {
+  local event tool id cwd pre tree
+  # "-" placeholders: tab is IFS whitespace, so empty fields would collapse.
+  IFS=$'\t' read -r event tool id cwd <<EOF
+$(jq -r '[.hook_event_name // "-", .tool_name // "-", .tool_use_id // "-", .cwd // "-"] | @tsv')
+EOF
+  case "$READONLY_TOOLS" in *" $tool "*) return 0 ;; esac
+  # Bad input must not fall back to the hook's own cwd (`git -C ""` is a no-op).
+  [ -n "$cwd" ] && [ "$cwd" != - ] && [ -d "$cwd" ] || return 0
+  cr_init "$cwd" || return 0
+
+  cr_lock
+  cr_sync_head
+  case "$event" in
+    UserPromptSubmit)
+      echo $(($(cr_turn) + 1)) > "$CR_STATE/turn"
+      cr_snapshot > "$CR_STATE/t0"
+      ;;
+    PreToolUse)
+      cr_snapshot > "$CR_STATE/pre/$id"
+      ;;
+    PostToolUse | PostToolUseFailure)
+      if [ -s "$CR_STATE/pre/$id" ]; then
+        pre=$(cat "$CR_STATE/pre/$id")
+        tree=$(cr_snapshot)
+        [ -n "$tree" ] && cr_git diff --name-only --no-renames -z "$pre" "$tree" | cr_record "$(cr_turn)"
+      fi
+      rm -f "$CR_STATE/pre/$id"
+      ;;
+    Stop)
+      tree=$(cr_snapshot)
+      if [ -s "$CR_STATE/t0" ] && [ -n "$tree" ]; then
+        cr_git diff --name-only --no-renames -z "$(cat "$CR_STATE/t0")" "$tree" | cr_record_new "$(cr_turn)"
+      fi
+      [ -n "$tree" ] && echo "$tree" > "$CR_STATE/t0"
+      ;;
+  esac
+  cr_unlock
+
+  case "$event" in PostToolUse | PostToolUseFailure | Stop) cr_ping ;; esac
+}
+
+main >/dev/null 2>&1
+exit 0

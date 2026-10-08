@@ -42,6 +42,12 @@ assert_eq "down" "$(run on-focus 1 '')" "moving down onto a divider: down"
 run on-focus 2 c.txt >/dev/null
 assert_eq "up" "$(run on-focus 1 '')" "moving up onto a divider: up"
 
+echo "on-change: list width change redraws list and header"
+FZF_PREVIEW_LEFT=33 run on-change d.txt >/dev/null   # settle on a width
+assert_eq "" "$(FZF_PREVIEW_LEFT=33 run on-change d.txt)" "same width, nothing changed"
+assert_eq "$RELOAD+$HEADER" "$(FZF_PREVIEW_LEFT=43 run on-change d.txt)" "width changed: reload and redraw header"
+assert_eq "" "$(FZF_PREVIEW_LEFT=43 run on-change d.txt)" "same width again: nothing"
+
 echo "toggle-follow"
 assert_eq "first+$HEADER" "$(run toggle-follow)" "paused -> on jumps to newest"
 assert_eq "on" "$(cat "$st/follow")" "state on"

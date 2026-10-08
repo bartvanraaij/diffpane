@@ -11,8 +11,8 @@ tool "$r" t2 rm c.txt
 tool "$r" t3 sh -c 'printf "1\n2\n3\n" > "new file.txt"'
 tool "$r" t4 sh -c 'printf "b2\n" >> b.txt'
 assert_eq $'b.txt\nnew file.txt\nc.txt\na.txt' "$(rows "$r")" "newest first"
-assert_eq $'M +1 −0  b.txt ●\nA +3 −0  new file.txt ●\nD +0 −1  c.txt ●\n─────────────────────────────\nM +1 −0  a.txt ●' \
-  "$(display "$r")" "display: turns split by a divider, status, stats, name, unseen mark"
+assert_eq $'M +1     b.txt ●\nA +3     new file.txt ●\nD    −1  c.txt ●\n─────────────────────────────\nM +1     a.txt ●' \
+  "$(display "$r")" "display: turns split by a divider, status, stats (zeros blank), name, unseen mark"
 assert_eq "1" "$(cd "$r" && "$CR_HOME/lib/list" | awk -F'\t' '$1 == ""' | wc -l | tr -d ' ')" "divider rows have an empty path"
 
 echo "list: reverted files drop, re-edits move to top"
@@ -26,7 +26,7 @@ assert_eq "" "$(rows "$r" | grep -x tmp.txt)" "file created and deleted is not l
 echo "list: seen marker"
 total=$(wc -l < "$(state "$r")/touched" | tr -d ' ')
 printf '%s\t%s\n' "$total" a.txt >> "$(state "$r")/seen"
-assert_eq "M +2 −0  a.txt" "$(display "$r" | grep a.txt)" "seen file has no marker"
+assert_eq "M +2     a.txt" "$(display "$r" | grep a.txt)" "seen file has no marker"
 
 echo "list: commit outside Claude resets"
 git -C "$r" add -A && git -C "$r" commit -qm user
@@ -36,7 +36,7 @@ echo "list: repo without commits"
 r=$(mkrepo empty --empty)
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "x\n" > x.txt'
-assert_eq "A +1 −0  x.txt ●" "$(display "$r")" "new file listed in fresh repo"
+assert_eq "A +1  x.txt ●" "$(display "$r")" "new file listed in fresh repo; all-zero column dropped"
 
 echo "list: paths are literal, not pathspecs"
 r=$(mkrepo glob)
@@ -45,7 +45,7 @@ printf 'x\n' > "$r/app/[id]/page.txt"; printf 'x\n' > "$r/app/i/page.txt"
 git -C "$r" add -A && git -C "$r" commit -qm routes
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "y\n" >> "app/[id]/page.txt" && printf "y\n" >> app/i/page.txt'
-assert_eq "M +1 −0  page.txt ●  app/[id]" "$(display "$r" | grep -F '[id]')" "bracket path gets its own stats only"
+assert_eq "M +1  page.txt ●  app/[id]" "$(display "$r" | grep -F '[id]')" "bracket path gets its own stats only"
 
 echo "list: columns align, name before directory"
 r=$(mkrepo align)
@@ -53,7 +53,13 @@ mkdir -p "$r/src/deep"; printf 'x\n' > "$r/src/deep/m.cs"
 git -C "$r" add -A && git -C "$r" commit -qm src
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'seq 12 >> a.txt && printf "y\n" > src/deep/m.cs'
-assert_eq $'M  +1 −1  m.cs ●  src/deep\nM +12 −0  a.txt ●' "$(display "$r")" "stats right-aligned per column"
+assert_eq $'M  +1 −1  m.cs ●  src/deep\nM +12     a.txt ●' "$(display "$r")" "stats right-aligned per column"
+
+echo "list: divider follows the real list width"
+r=$(mkrepo wide)
+hook "$r" UserPromptSubmit >/dev/null; tool "$r" t1 sh -c 'printf "x\n" >> a.txt'
+hook "$r" UserPromptSubmit >/dev/null; tool "$r" t2 sh -c 'printf "x\n" >> b.txt'
+assert_eq "$(printf '─%.0s' $(seq 40))" "$(cd "$r" && FZF_COLUMNS=100 FZF_PREVIEW_LEFT=43 "$CR_HOME/lib/list" | awk -F'\t' '$1 == ""' | cut -f2 | sed $'s/\033\\[[0-9;]*m//g')" "preview dragged to column 43: 40-wide divider"
 
 echo "list: fast with many files"
 r=$(mkrepo many)

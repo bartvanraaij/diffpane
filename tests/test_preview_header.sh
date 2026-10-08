@@ -56,5 +56,6 @@ printf 'a.txt\tx\n\t────\nb.txt\ty\n' > "$st/view.list"
 echo paused > "$st/follow"
 assert_eq "head          2 files changed
 2 turns              ⏸ paused" "$(hdr)" "divider rows are not files, turns = dividers + 1"
+assert_eq "head                     2 files changed" "$( (cd "$r" && FZF_COLUMNS=100 FZF_PREVIEW_LEFT=43 "$CR_HOME/lib/header") | strip | head -1)" "preview dragged: right-aligned to the real list width"
 
 finish

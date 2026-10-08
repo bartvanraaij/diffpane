@@ -107,9 +107,11 @@ cr_theme() {
   else echo dark; fi
 }
 
-# Usable width of the viewer's list column: fzf's width minus the 70% preview,
-# minus one column kept free next to the preview border.
+# Usable width of the viewer's list column, one column kept free before the
+# preview border. Inside fzf the preview's real left edge (it can be dragged);
+# before fzf starts, the 70% preview split.
 cr_list_width() {
+  if [ -n "$FZF_PREVIEW_LEFT" ]; then echo $((FZF_PREVIEW_LEFT - 3)); return; fi
   local cols=${FZF_COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
   echo $((cols - cols * 70 / 100 - 1))
 }

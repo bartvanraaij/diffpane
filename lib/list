@@ -32,7 +32,7 @@ seen="$CR_STATE/seen"
 [ -f "$seen" ] || seen=/dev/null
 
 # Turns are separated by a divider row with an empty path.
-# File row display: "<M|A|D> <+add> <−del>  <name>[ ●]  <dir>", stat columns right-aligned,
+# File row display: "<M|A|D> <+add> <−del>  <name>[ ●]  <dir>", stat columns right-aligned, zeros blank,
 # ● = changed since last viewed.
 awk -F'\t' -v width="$(cr_list_width)" \
   -v Y=$'\033[33m' -v G=$'\033[32m' -v R=$'\033[31m' -v B=$'\033[34m' -v D=$'\033[2m' -v N=$'\033[0m' '
@@ -56,8 +56,8 @@ awk -F'\t' -v width="$(cr_list_width)" \
     }
     k++; P[k] = path; T[k] = turn; S[k] = st N; A[k] = a; Dl[k] = d
     U[k] = (line > seen[path] + 0) ? " " B "●" N : ""
-    if (length(a) > wa) wa = length(a)
-    if (length(d) > wd) wd = length(d)
+    if (a + 0 && length(a) > wa) wa = length(a)  # zero counts are left blank;
+    if (d + 0 && length(d) > wd) wd = length(d)  # an all-zero column is dropped
   }
   END {
     for (i = 0; i < width; i++) rule = rule "─"
@@ -65,8 +65,8 @@ awk -F'\t' -v width="$(cr_list_width)" \
       if (i > 1 && T[i] != T[i - 1]) printf "\t%s%s%s\n", D, rule, N
       name = P[i]; dir = ""
       if (match(P[i], /.*\//)) { dir = "  " D substr(P[i], 1, RLENGTH - 1) N; name = substr(P[i], RLENGTH + 1) }
-      ca = A[i] + 0 ? G : D; cd = Dl[i] + 0 ? R : D
-      printf "%s\t%s %s%s+%s%s %s%s−%s%s  %s%s%s\n", P[i], S[i],
-        pad(wa - length(A[i])), ca, A[i], N, pad(wd - length(Dl[i])), cd, Dl[i], N, name, U[i], dir
+      ca = !wa ? "" : A[i] + 0 ? " " pad(wa - length(A[i])) G "+" A[i] N : pad(wa + 2)
+      cd = !wd ? "" : Dl[i] + 0 ? " " pad(wd - length(Dl[i])) R "−" Dl[i] N : pad(wd + 2)
+      printf "%s\t%s%s%s  %s%s%s\n", P[i], S[i], ca, cd, name, U[i], dir
     }
   }' "$tmp/inbase" "$tmp/numstat" "$tmp/exists" "$seen" "$tmp/rows"

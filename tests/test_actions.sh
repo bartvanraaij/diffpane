@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+. "$(dirname "$0")/helpers.sh"
+run() { (cd "$r" && "$CR_HOME/lib/$@"); }
+RELOAD='reload-sync(cat "$CR_STATE/view.list")'
+HEADER='transform-header($CR_LIB/header)'
+
+r=$(mkrepo act)
+st=$(state "$r")
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "x\n" >> a.txt'
+tool "$r" t2 sh -c 'printf "x\n" >> b.txt'
+
+echo "on-change"
+echo on > "$st/follow"
+assert_eq "$RELOAD+first" "$(run on-change b.txt)" "first change with follow on jumps to top"
+assert_eq "" "$(run on-change b.txt)" "unchanged list prints nothing"
+assert_eq "$RELOAD+first" "$(run on-change b.txt --force)" "--force reloads anyway"
+echo off > "$st/follow"
+tool "$r" t3 sh -c 'printf "x\n" >> c.txt'
+assert_eq "$RELOAD+pos(3)" "$(run on-change a.txt)" "follow off keeps focus on a.txt (now row 3)"
+tool "$r" t4 git checkout -- a.txt
+assert_eq "$RELOAD+first" "$(run on-change a.txt)" "focused file gone falls back to first"
+
+echo "on-focus"
+echo on > "$st/follow"
+run on-change c.txt --force >/dev/null
+out=$(run on-focus 0 c.txt)
+assert_eq "on" "$(cat "$st/follow")" "focus on top row keeps follow on"
+assert_eq "$RELOAD+first" "$out" "focusing unseen top row marks it seen and reloads"
+assert_eq "" "$(run on-focus 0 c.txt)" "already seen row: no actions"
+out=$(run on-focus 1 b.txt)
+assert_eq "paused" "$(cat "$st/follow")" "moving off top row pauses follow"
+assert_eq "$HEADER+$RELOAD+pos(2)" "$out" "pause updates header, marks b.txt seen keeping focus"
+assert_eq "" "$(run on-focus '' '')" "empty list: no actions"
+
+echo "toggle-follow"
+assert_eq "first+$HEADER" "$(run toggle-follow)" "paused -> on jumps to newest"
+assert_eq "on" "$(cat "$st/follow")" "state on"
+assert_eq "$HEADER" "$(run toggle-follow)" "on -> off"
+assert_eq "off" "$(cat "$st/follow")" "state off"
+assert_eq "first+$HEADER" "$(run toggle-follow)" "off -> on"
+
+finish

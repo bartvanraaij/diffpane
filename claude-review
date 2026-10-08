@@ -17,11 +17,17 @@ echo on > "$CR_STATE/follow"
 rows=$("$CR_LIB/list")
 if [ -n "$rows" ]; then printf '%s\n' "$rows" > "$CR_STATE/view.list"; else : > "$CR_STATE/view.list"; fi
 
-# Ticker: catches commits and edits made outside Claude. Stops when this script exits.
+# Ticker: catches commits and edits made outside Claude, and theme switches.
+# fzf can't change colors while running, so on a switch it saves the focused
+# file and quits fzf; the loop below starts a new one. Stops when this script exits.
+restart="$CR_STATE/view.restart"
 (
+  theme=$(cr_theme)
   while sleep 3 && kill -0 $$ 2>/dev/null; do
-    curl -s --max-time 1 --unix-socket "$sock" http://localhost \
-      -d 'transform($CR_LIB/on-change {1})' >/dev/null 2>&1
+    action='transform($CR_LIB/on-change {1})'
+    now=$(cr_theme)
+    [ "$now" = "$theme" ] || { theme=$now; action='execute-silent(printf %s {1} > "$CR_STATE/view.restart")+abort'; }
+    curl -s --max-time 1 --unix-socket "$sock" http://localhost -d "$action" >/dev/null 2>&1
   done
 ) &
 ticker=$!
@@ -35,18 +41,30 @@ else
   open='execute(${EDITOR:-nvim} {1})'
 fi
 
-fzf < "$CR_STATE/view.list" \
-  --listen="$sock" \
-  --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$(cr_theme)" \
-  --delimiter='\t' --with-nth=2 \
-  --preview '$CR_LIB/preview {1}' \
-  --preview-window 'right,70%,border-left' \
-  --bind 'start:transform-header($CR_LIB/header)' \
-  --bind 'result:transform-header($CR_LIB/header)' \
-  --bind 'focus:transform($CR_LIB/on-focus {n} {1})' \
-  --bind 'j:down,k:up' \
-  --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
-  --bind 'f:transform($CR_LIB/toggle-follow)' \
-  --bind 'r:transform($CR_LIB/on-change {1} --force)' \
-  --bind "enter:$open" \
-  --bind 'q:abort'
+rm -f "$restart"
+while :; do
+  # After a theme restart, keep the file the user was on (follow picks its own).
+  refocus="load:ignore"
+  if [ -f "$restart" ] && [ "$(cat "$CR_STATE/follow")" != on ]; then
+    idx=$(awk -F'\t' -v p="$(cat "$restart")" '$1 == p { print NR; exit }' "$CR_STATE/view.list")
+    [ -n "$idx" ] && refocus="load:pos($idx)+unbind(load)"  # once, after input is read
+  fi
+  rm -f "$restart"
+  fzf < "$CR_STATE/view.list" \
+    --listen="$sock" \
+    --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$(cr_theme)" \
+    --delimiter='\t' --with-nth=2 \
+    --preview '$CR_LIB/preview {1}' \
+    --preview-window 'right,70%,border-left' \
+    --bind 'start:transform-header($CR_LIB/header)' \
+    --bind "$refocus" \
+    --bind 'result:transform-header($CR_LIB/header)' \
+    --bind 'focus:transform($CR_LIB/on-focus {n} {1})' \
+    --bind 'j:down,k:up' \
+    --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
+    --bind 'f:transform($CR_LIB/toggle-follow)' \
+    --bind 'r:transform($CR_LIB/on-change {1} --force)' \
+    --bind "enter:$open" \
+    --bind 'q:abort'
+  [ -f "$restart" ] || break
+done

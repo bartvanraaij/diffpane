@@ -103,8 +103,10 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
      Claude
    - header: `claude-review · <repo> · <n> files · turn <t> · follow ●|⏸|○`
    - empty state: `No Claude changes since <short sha> <subject>`
-4. **`layout`** — tmux helper: in current window, split so `claude` runs in a
-   right 33% pane and `claude-review` in the left 67% pane.
+4. **`layout`** — tmux helper: opens a new window in the current pane's
+   directory with `claude-review` in the left 67% and `claude` in the right
+   33% pane. A new window, not a split of the current one, so whatever runs
+   in the current pane is left alone.
 5. **`toggle`** — tmux helper: create the viewer pane left of the current
    pane if missing, kill it if present.
 

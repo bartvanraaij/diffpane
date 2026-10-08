@@ -37,4 +37,24 @@ hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "x\n" > x.txt'
 assert_eq "● 1  x.txt  +1 −0  new" "$(display "$r")" "new file listed in fresh repo"
 
+echo "list: paths are literal, not pathspecs"
+r=$(mkrepo glob)
+mkdir -p "$r/app/[id]" "$r/app/i"
+printf 'x\n' > "$r/app/[id]/page.txt"; printf 'x\n' > "$r/app/i/page.txt"
+git -C "$r" add -A && git -C "$r" commit -qm routes
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "y\n" >> "app/[id]/page.txt" && printf "y\n" >> app/i/page.txt'
+assert_eq "● 1  app/[id]/page.txt  +1 −0" "$(display "$r" | grep -F '[id]')" "bracket path gets its own stats only"
+
+echo "list: fast with many files"
+r=$(mkrepo many)
+for i in $(seq 40); do printf 'x\n' > "$r/f$i.txt"; done
+git -C "$r" add -A && git -C "$r" commit -qm many
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'for i in $(seq 40); do printf "y\n" >> f$i.txt; done'
+TIMEFORMAT='%R'
+secs=$( { time (cd "$r" && "$CR_HOME/lib/list" >/dev/null); } 2>&1 )
+assert_eq "40" "$(rows "$r" | wc -l | tr -d ' ')" "40 rows listed"
+assert_eq "yes" "$(awk -v s="$secs" 'BEGIN { print (s < 0.3) ? "yes" : "no" }')" "40 files listed in < 0.3s (took ${secs}s)"
+
 finish

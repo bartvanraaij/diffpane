@@ -21,7 +21,8 @@ EOF
   export CR_ROOT CR_STATE CR_REAL_INDEX CR_HEAD
 }
 
-cr_git() { git -C "$CR_ROOT" -c core.quotepath=off "$@"; }
+# Literal pathspecs: names like app/[id]/page.tsx must not act as globs.
+cr_git() { git --literal-pathspecs -C "$CR_ROOT" -c core.quotepath=off "$@"; }
 
 # Diff base: HEAD, or the empty tree in a repo without commits.
 cr_base() {
@@ -43,12 +44,15 @@ cr_lock() {
 
 cr_unlock() { rmdir "$CR_STATE/lock" 2>/dev/null; }
 
-# Wipe state when HEAD moved (commit, amend, checkout). Call with the lock held.
-# Uses the HEAD that cr_init resolved.
+# Reset the list when HEAD moved (commit, amend, checkout). Call with the lock held.
+# Uses the HEAD that cr_init resolved. Snapshots (pre/*, t0) are tree shas that
+# don't depend on HEAD, so in-flight tool calls keep them; only orphans (a Pre
+# whose Post never came, e.g. a denied permission prompt) are pruned.
 cr_sync_head() {
   local head="$CR_HEAD"
   [ "$(cat "$CR_STATE/head" 2>/dev/null)" = "$head" ] && return 0
-  rm -f "$CR_STATE/touched" "$CR_STATE/seen" "$CR_STATE/turn" "$CR_STATE/t0" "$CR_STATE"/pre/*
+  rm -f "$CR_STATE/touched" "$CR_STATE/seen"
+  find "$CR_STATE/pre" -type f -mmin +60 -delete 2>/dev/null
   # Seed the private index from the real one so the first snapshot reuses its stat cache.
   [ -f "$CR_REAL_INDEX" ] && cp "$CR_REAL_INDEX" "$CR_STATE/index"
   echo "$head" > "$CR_STATE/head"

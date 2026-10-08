@@ -79,4 +79,10 @@ assert_eq "rc=0" "$out" "outside a git repo: silent, exit 0"
 out=$(echo 'not json' | "$CR_HOME/record"; echo "rc=$?")
 assert_eq "rc=0" "$out" "garbage input: silent, exit 0"
 
+echo "record: commit inside a tool call keeps other changes from that call"
+r=$(mkrepo commitmix)
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "x\n" >> a.txt && printf "fmt\n" >> b.txt && git add a.txt && git commit -qm part'
+assert_eq "b.txt" "$(rows "$r")" "uncommitted b.txt from the committing call is listed"
+
 finish

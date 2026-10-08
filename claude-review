@@ -28,7 +28,9 @@ ticker=$!
 trap 'kill $ticker 2>/dev/null' EXIT
 
 if [ -n "$TMUX" ]; then
-  open='execute-silent(tmux new-window -c "$CR_ROOT" "${EDITOR:-nvim} {1}")'
+  # Editor and file as separate args: tmux runs them without a shell, so a
+  # name like posts.$id.tsx is not expanded.
+  open='execute-silent(tmux new-window -c "$CR_ROOT" ${EDITOR:-nvim} {1})'
 else
   open='execute(${EDITOR:-nvim} {1})'
 fi

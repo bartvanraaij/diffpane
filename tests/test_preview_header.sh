@@ -46,16 +46,16 @@ st=$(state "$r"); mkdir -p "$st"
 sha=$(git -C "$r" rev-parse --short HEAD)
 hdr() { (cd "$r" && FZF_COLUMNS=100 "$CR_HOME/lib/header") | strip; }  # list column: 30 wide
 assert_eq "head          0 files changed
-0 turns          ○ follow off
+0 turns                     ○
 No Claude changes since $sha init" "$(hdr)" "empty state, counts right-aligned"
 printf 'a.txt\tx\n' > "$st/view.list"
 echo on > "$st/follow"
 assert_eq "head           1 file changed
-1 turn            ● following" "$(hdr)" "singular, follow on"
+1 turn                      ●" "$(hdr)" "singular, follow on"
 printf 'a.txt\tx\n\t────\nb.txt\ty\n' > "$st/view.list"
 echo paused > "$st/follow"
 assert_eq "head          2 files changed
-2 turns              ⏸ paused" "$(hdr)" "divider rows are not files, turns = dividers + 1"
+2 turns                     ⏸" "$(hdr)" "divider rows are not files, turns = dividers + 1"
 assert_eq "head                     2 files changed" "$( (cd "$r" && FZF_COLUMNS=100 FZF_PREVIEW_LEFT=43 "$CR_HOME/lib/header") | strip | head -1)" "preview dragged: right-aligned to the real list width"
 
 finish

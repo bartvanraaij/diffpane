@@ -51,7 +51,7 @@ assert_eq "0" "$($T capture-pane -p -e -t crtest | grep -c '38;5;101')" "light: 
 wait_for 'posts.\$id.txt' && assert_eq ok ok "list survives the restart" || assert_eq ok fail "list survives the restart"
 # Paused follow: the file the user moved to stays selected across a restart.
 $T send-keys -t crtest j
-wait_for 'follow ⏸' || true
+wait_for '⏸' || true
 focused() { $T capture-pane -p -e -t crtest | grep -- "$1" | grep -o 'a\.txt\|posts\.\$id\.txt' | head -1; }
 echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 for i in $(seq 60); do [ "$(sel '48;5;236')" -gt 0 ] && break; sleep 0.1; done

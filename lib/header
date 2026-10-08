@@ -10,11 +10,11 @@ set -- $(awk -F'\t' '$1 != "" { f++ } $1 == "" { d++ } END { print f + 0, f ? d 
 n=${1:-0} turns=${2:-0}
 [ "$n" -eq 1 ] && files="1 file changed" || files="$n files changed"
 [ "$turns" -eq 1 ] && turns="1 turn" || turns="$turns turns"
-# follow text and its visible width (symbols are one column, more bytes)
+# follow state: on ●, paused ⏸, off ○ (one column wide)
 case "$(cat "$CR_STATE/follow" 2>/dev/null)" in
-  on) follow="${G}●${N} following" fw=11 ;;
-  paused) follow="${Y}⏸${N} paused" fw=8 ;;
-  *) follow="${D}○ follow off${N}" fw=12 ;;
+  on) follow="${G}●${N}" ;;
+  paused) follow="${Y}⏸${N}" ;;
+  *) follow="${D}○${N}" ;;
 esac
 
 width=$(cr_list_width)
@@ -25,7 +25,7 @@ line() {  # <left> <left width> <right> <right width>
 }
 repo=$(basename "$CR_ROOT")
 line "$B$repo$N" "${#repo}" "$D$files$N" "${#files}"
-line "$D$turns$N" "${#turns}" "$follow" "$fw"
+line "$D$turns$N" "${#turns}" "$follow" 1
 if [ "$n" -eq 0 ]; then
   printf '%sNo Claude changes since %s%s\n' "$D" "$(cr_git log -1 --format='%h %s' 2>/dev/null || echo 'repo start')" "$N"
 fi

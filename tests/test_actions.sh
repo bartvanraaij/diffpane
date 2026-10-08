@@ -55,4 +55,26 @@ assert_eq "$HEADER" "$(run toggle-follow)" "on -> off"
 assert_eq "off" "$(cat "$st/follow")" "state off"
 assert_eq "first+$HEADER" "$(run toggle-follow)" "off -> on"
 
+echo "follow: paused resumes when a new turn brings changes; off stays off"
+r=$(mkrepo resume)
+st=$(state "$r")
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "x\n" >> a.txt && printf "x\n" >> b.txt'
+echo on > "$st/follow"
+run on-change b.txt --force >/dev/null
+run on-focus 1 a.txt >/dev/null
+assert_eq "paused" "$(cat "$st/follow")" "navigation paused follow"
+tool "$r" t2 sh -c 'printf "x\n" >> c.txt'
+assert_eq "$RELOAD+pos(3)" "$(run on-change a.txt)" "more changes in the same turn: stay paused, keep focus"
+assert_eq "paused" "$(cat "$st/follow")" "still paused"
+hook "$r" UserPromptSubmit >/dev/null
+assert_eq "" "$(run on-change a.txt)" "new turn without changes: nothing"
+tool "$r" t3 sh -c 'printf "x\n" >> d.txt'
+assert_eq "$RELOAD+first+$HEADER" "$(run on-change a.txt)" "new turn with changes: follow back on, jump to newest"
+assert_eq "on" "$(cat "$st/follow")" "follow on again"
+echo off > "$st/follow"
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t4 sh -c 'printf "x\n" >> e.txt'
+assert_eq "off" "$(run on-change a.txt >/dev/null; cat "$st/follow")" "follow switched off with f stays off"
+
 finish

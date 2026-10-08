@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # fzf transform: reload the list if it changed. Usage: on-change <focused-path> [--force]
 # Follow on: jump to newest. Otherwise keep focus on the same file.
+# Paused follow (from navigating) turns back on once a later turn changes files.
 . "$(dirname "$0")/common.sh"
 
 cr_init "$PWD" || exit 0
@@ -16,6 +17,12 @@ new=$("$CR_LIB/list")
 if [ "$2" != --force ] && [ -z "$header" ] && [ "$new" = "$(cat "$CR_STATE/view.list" 2>/dev/null)" ]; then
   exit 0
 fi
+resume=no
+if [ "$(cat "$CR_STATE/follow" 2>/dev/null)" = paused ] &&
+  [ "$(tail -1 "$CR_STATE/touched" 2>/dev/null | cut -f1)" -gt "$(cat "$CR_STATE/view.paused-turn" 2>/dev/null || echo 0)" ] 2>/dev/null; then
+  echo on > "$CR_STATE/follow"
+  resume=yes header='+transform-header($CR_LIB/header)'
+fi
 same_rows=no
 [ "$(printf '%s\n' "$new" | cut -f1)" = "$(cut -f1 "$CR_STATE/view.list" 2>/dev/null)" ] && same_rows=yes
 if [ -n "$new" ]; then printf '%s\n' "$new" > "$CR_STATE/view.list"; else : > "$CR_STATE/view.list"; fi
@@ -23,7 +30,7 @@ if [ -n "$new" ]; then printf '%s\n' "$new" > "$CR_STATE/view.list"; else : > "$
 reload='reload-sync(cat "$CR_STATE/view.list")'
 # Same rows in the same order (only marks/stats changed): fzf keeps the cursor
 # by itself. Repositioning would undo a keypress that raced this reload.
-if [ "$same_rows" = yes ]; then
+if [ "$same_rows" = yes ] && [ "$resume" = no ]; then
   echo "$reload$header"
   exit 0
 fi

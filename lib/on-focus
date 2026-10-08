@@ -17,6 +17,7 @@ actions=""
 
 if [ "$(cat "$CR_STATE/follow" 2>/dev/null)" = on ] && [ "$n" != 0 ]; then
   echo paused > "$CR_STATE/follow"
+  cr_turn > "$CR_STATE/view.paused-turn"  # on-change resumes follow after this turn
   actions='transform-header($CR_LIB/header)'
 fi
 

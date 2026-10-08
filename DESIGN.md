@@ -122,6 +122,8 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
   - Manual navigation (`j/k`, arrows, mouse click) while following pauses
     follow (`⏸`). `f` resumes.
   - `f` while off/paused turns follow on; `f` while on turns it off (`○`).
+  - Paused follow turns back on when a later turn changes files; follow
+    switched off with `f` stays off.
 - Light/dark follows the `theme` tool's Ghostty file (`CR_THEME` overrides).
   fzf can't recolor live, so the ticker restarts fzf within ~3s of a switch,
   keeping the selected file when follow is off.

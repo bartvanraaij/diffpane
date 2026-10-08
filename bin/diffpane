@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# claude-diff: live list + inline diff of files Claude changed since HEAD.
-#   claude-diff                the viewer (run it in a pane next to Claude Code)
-#   claude-diff toggle [pane]  tmux: open/close the viewer left of a pane
-#   claude-diff layout [dir]   tmux: new window, viewer left, `claude` right
+# diffpane: live list + inline diff of files Claude changed since HEAD.
+#   diffpane                 the viewer (run it in a pane next to Claude Code)
+#   diffpane toggle [pane]   tmux: open/close the viewer left of a pane
+#   diffpane layout [dir]    tmux: new window, viewer left, `claude` right
 # See DESIGN.md.
 
 # Follow symlinks (installed as a link on PATH) to find lib/.
@@ -18,30 +18,30 @@ case "$1" in
 esac
 . "$lib/common.sh"
 
-cdiff_init "$PWD" || { echo "claude-diff: not inside a git work tree" >&2; exit 1; }
-cd "$CDIFF_ROOT" || exit 1
-sock=$(cdiff_sock)
+dp_init "$PWD" || { echo "diffpane: not inside a git work tree" >&2; exit 1; }
+cd "$DP_ROOT" || exit 1
+sock=$(dp_sock)
 mkdir -p "${sock%/*}" && chmod 700 "${sock%/*}"
 
 if [ -S "$sock" ] && curl -s --max-time 1 --unix-socket "$sock" http://localhost >/dev/null 2>&1; then
-  echo "claude-diff: already running for $CDIFF_ROOT" >&2
+  echo "diffpane: already running for $DP_ROOT" >&2
   exit 1
 fi
 
-echo on > "$CDIFF_STATE/follow"
-rows=$("$CDIFF_LIB/list")
-if [ -n "$rows" ]; then printf '%s\n' "$rows" > "$CDIFF_STATE/view.list"; else : > "$CDIFF_STATE/view.list"; fi
+echo on > "$DP_STATE/follow"
+rows=$("$DP_LIB/list")
+if [ -n "$rows" ]; then printf '%s\n' "$rows" > "$DP_STATE/view.list"; else : > "$DP_STATE/view.list"; fi
 
 # Ticker: catches commits and edits made outside Claude, and theme switches.
 # fzf can't change colors while running, so on a switch it saves the focused
 # file and quits fzf; the loop below starts a new one. Stops when this script exits.
-restart="$CDIFF_STATE/view.restart"
+restart="$DP_STATE/view.restart"
 (
-  theme=$(cdiff_theme)
+  theme=$(dp_theme)
   while sleep 3 && kill -0 $$ 2>/dev/null; do
-    action='transform($CDIFF_LIB/on-change {1})'
-    now=$(cdiff_theme)
-    [ "$now" = "$theme" ] || { theme=$now; action='execute-silent(printf %s {1} > "$CDIFF_STATE/view.restart")+abort'; }
+    action='transform($DP_LIB/on-change {1})'
+    now=$(dp_theme)
+    [ "$now" = "$theme" ] || { theme=$now; action='execute-silent(printf %s {1} > "$DP_STATE/view.restart")+abort'; }
     curl -s --max-time 1 --unix-socket "$sock" http://localhost -d "$action" >/dev/null 2>&1
   done
 ) &
@@ -51,42 +51,42 @@ trap 'kill $ticker 2>/dev/null' EXIT
 if [ -n "$TMUX" ]; then
   # Editor and file as separate args: tmux runs them without a shell, so a
   # name like posts.$id.tsx is not expanded.
-  open='execute-silent(tmux new-window -c "$CDIFF_ROOT" ${EDITOR:-nvim} {1})'
+  open='execute-silent(tmux new-window -c "$DP_ROOT" ${EDITOR:-nvim} {1})'
 else
   open='execute(${EDITOR:-nvim} {1})'
 fi
 
-[ -n "$TMUX" ] && tmux select-pane -t "$TMUX_PANE" -T "Claude Diff"
+[ -n "$TMUX" ] && tmux select-pane -t "$TMUX_PANE" -T "Diffpane"
 
 rm -f "$restart"
 while :; do
   # After a theme restart, keep the file the user was on (follow picks its own).
   refocus="load:ignore"
-  if [ -f "$restart" ] && [ "$(cat "$CDIFF_STATE/follow")" != on ]; then
-    idx=$(awk -F'\t' -v p="$(cat "$restart")" '$1 == p { print NR; exit }' "$CDIFF_STATE/view.list")
+  if [ -f "$restart" ] && [ "$(cat "$DP_STATE/follow")" != on ]; then
+    idx=$(awk -F'\t' -v p="$(cat "$restart")" '$1 == p { print NR; exit }' "$DP_STATE/view.list")
     [ -n "$idx" ] && refocus="load:pos($idx)+unbind(load)"  # once, after input is read
   fi
   rm -f "$restart"
   # header:-1 lets the header's own ANSI styling show. Light defaults are too
   # dark (bg+ 251) or olive (info 101: preview scroll indicator).
-  colors="$(cdiff_theme),header:-1"
-  [ "$(cdiff_theme)" = light ] && colors="$colors,bg+:#eaeef2,info:#6e7781"
-  fzf < "$CDIFF_STATE/view.list" \
+  colors="$(dp_theme),header:-1"
+  [ "$(dp_theme)" = light ] && colors="$colors,bg+:#eaeef2,info:#6e7781"
+  fzf < "$DP_STATE/view.list" \
     --listen="$sock" \
     --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$colors" \
     --header-border=bottom --pointer='' --marker='' --gutter=' ' \
     --delimiter='\t' --with-nth=2 \
-    --preview '$CDIFF_LIB/preview {1}' \
+    --preview '$DP_LIB/preview {1}' \
     --preview-window 'right,70%,border-left' \
-    --bind 'start:transform-header($CDIFF_LIB/header)' \
+    --bind 'start:transform-header($DP_LIB/header)' \
     --bind "$refocus" \
-    --bind 'result:transform-header($CDIFF_LIB/header)' \
-    --bind 'resize:transform-header($CDIFF_LIB/header)+transform($CDIFF_LIB/on-change {1} --force)' \
-    --bind 'focus:transform($CDIFF_LIB/on-focus {n} {1})' \
+    --bind 'result:transform-header($DP_LIB/header)' \
+    --bind 'resize:transform-header($DP_LIB/header)+transform($DP_LIB/on-change {1} --force)' \
+    --bind 'focus:transform($DP_LIB/on-focus {n} {1})' \
     --bind 'j:down,k:up' \
     --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
-    --bind 'f:transform($CDIFF_LIB/toggle-follow)' \
-    --bind 'r:transform($CDIFF_LIB/on-change {1} --force)' \
+    --bind 'f:transform($DP_LIB/toggle-follow)' \
+    --bind 'r:transform($DP_LIB/on-change {1} --force)' \
     --bind "enter:$open" \
     --bind 'q:abort'
   [ -f "$restart" ] || break

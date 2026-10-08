@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 . "$(dirname "$0")/helpers.sh"
-run() { (cd "$r" && "$CDIFF_HOME/lib/$@"); }
-RELOAD='reload-sync(cat "$CDIFF_STATE/view.list")'
-HEADER='transform-header($CDIFF_LIB/header)'
+run() { (cd "$r" && "$DP_HOME/lib/$@"); }
+RELOAD='reload-sync(cat "$DP_STATE/view.list")'
+HEADER='transform-header($DP_LIB/header)'
 
 r=$(mkrepo act)
 st=$(state "$r")

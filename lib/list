@@ -5,36 +5,36 @@
 # regardless of how many files changed.
 . "$(dirname "$0")/common.sh"
 
-cdiff_init "$PWD" || exit 0
-cdiff_lock; cdiff_sync_head; cdiff_unlock
-[ -s "$CDIFF_STATE/touched" ] || exit 0
-cd "$CDIFF_ROOT" || exit 0
+dp_init "$PWD" || exit 0
+dp_lock; dp_sync_head; dp_unlock
+[ -s "$DP_STATE/touched" ] || exit 0
+cd "$DP_ROOT" || exit 0
 
-base=$(cdiff_base)
+base=$(dp_base)
 TAB=$(printf '\t')
 tmp=$(mktemp -d) || exit 0
 trap 'rm -rf "$tmp"' EXIT
 
 # Newest log line per path, newest first: "<line>\t<turn>\t<path>".
 awk -F'\t' '{ line[$2] = NR; turn[$2] = $1 }
-  END { for (p in line) printf "%d\t%s\t%s\n", line[p], turn[p], p }' "$CDIFF_STATE/touched" |
+  END { for (p in line) printf "%d\t%s\t%s\n", line[p], turn[p], p }' "$DP_STATE/touched" |
   sort -t "$TAB" -k1,1nr > "$tmp/rows"
 
 paths=()
 while IFS="$TAB" read -r _ _ path; do paths+=("$path"); done < "$tmp/rows"
 
-cdiff_git ls-tree -r --name-only -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/inbase"
-cdiff_git diff --numstat --no-renames -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/numstat"
+dp_git ls-tree -r --name-only -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/inbase"
+dp_git diff --numstat --no-renames -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/numstat"
 for p in "${paths[@]}"; do
   if [ -e "$p" ] || [ -L "$p" ]; then printf '%s\n' "$p"; fi
 done > "$tmp/exists"
-seen="$CDIFF_STATE/seen"
+seen="$DP_STATE/seen"
 [ -f "$seen" ] || seen=/dev/null
 
 # Turns are separated by a divider row with an empty path.
 # File row display: "<M|A|D> <+add> <−del>  <name>[ ●]  <dir>", stat columns right-aligned, zeros blank,
 # ● = changed since last viewed.
-awk -F'\t' -v width="$(cdiff_list_width)" \
+awk -F'\t' -v width="$(dp_list_width)" \
   -v Y=$'\033[33m' -v G=$'\033[32m' -v R=$'\033[31m' -v B=$'\033[34m' -v D=$'\033[2m' -v N=$'\033[0m' '
   function pad(n) { return sprintf("%" n "s", "") }
   FILENAME == ARGV[1] { inbase[$0] = 1; next }

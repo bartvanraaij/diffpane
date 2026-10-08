@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# tmux: new window with claude-diff left (67%) and claude right (33%). Usage: layout <dir>
+# tmux: new window with diffpane left (67%) and claude right (33%). Usage: layout <dir>
 dir="${1:-$PWD}"
 viewer=$(tmux new-window -c "$dir" -n "$(basename "$dir")" -P -F '#{pane_id}')
-tmux set -p -t "$viewer" @claude-diff 1
-tmux send-keys -t "$viewer" "$(printf %q "$(cd "$(dirname "$0")/.." && pwd)/bin/claude-diff")" Enter
+tmux set -p -t "$viewer" @diffpane 1
+tmux send-keys -t "$viewer" "$(printf %q "$(cd "$(dirname "$0")/.." && pwd)/bin/diffpane")" Enter
 claude=$(tmux split-window -h -l 33% -t "$viewer" -c "$dir" -P -F '#{pane_id}')
 tmux send-keys -t "$claude" claude Enter

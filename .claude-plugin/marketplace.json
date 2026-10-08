@@ -1,0 +1,13 @@
+{
+  "name": "diffpane",
+  "owner": {
+    "name": "Bart van Raaij"
+  },
+  "plugins": [
+    {
+      "name": "diffpane",
+      "source": "./"
+    }
+  ],
+  "description": "Diffpane: live diff viewer for files Claude Code changes"
+}

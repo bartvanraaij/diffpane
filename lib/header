@@ -3,27 +3,27 @@
 # Counts are right-aligned to the list column.
 . "$(dirname "$0")/common.sh"
 
-cdiff_init "$PWD" || exit 0
+dp_init "$PWD" || exit 0
 B=$'\033[1m' D=$'\033[2m' G=$'\033[32m' Y=$'\033[33m' N=$'\033[0m'
 # view.list: file rows have a path, the dividers between turns don't.
-set -- $(awk -F'\t' '$1 != "" { f++ } $1 == "" { d++ } END { print f + 0, f ? d + 1 : 0 }' "$CDIFF_STATE/view.list" 2>/dev/null)
+set -- $(awk -F'\t' '$1 != "" { f++ } $1 == "" { d++ } END { print f + 0, f ? d + 1 : 0 }' "$DP_STATE/view.list" 2>/dev/null)
 n=${1:-0} turns=${2:-0}
 [ "$n" -eq 1 ] && files="1 file changed" || files="$n files changed"
 [ "$turns" -eq 1 ] && turns="1 turn" || turns="$turns turns"
 # follow state: on ●, paused ⏸, off ○ (one column wide)
-case "$(cat "$CDIFF_STATE/follow" 2>/dev/null)" in
+case "$(cat "$DP_STATE/follow" 2>/dev/null)" in
   on) follow="${G}●${N}" ;;
   paused) follow="${Y}⏸${N}" ;;
   *) follow="${D}○${N}" ;;
 esac
 
-width=$(cdiff_list_width)
+width=$(dp_list_width)
 line() {  # <left> <left width> <right> <right width>
   local gap=$((width - $2 - $4))
   [ "$gap" -lt 2 ] && gap=2
   printf '%s%*s%s\n' "$1" "$gap" '' "$3"
 }
-repo=$(basename "$CDIFF_ROOT")
+repo=$(basename "$DP_ROOT")
 line "$B$repo$N" "${#repo}" "$follow" 1
 if [ "$n" -gt 0 ]; then
   line "$D$turns$N" "${#turns}" "$D$files$N" "${#files}"
@@ -32,14 +32,14 @@ fi
 
 # Empty state: the commit everything is compared against, message in full.
 printf '\nNo Claude changes since\n'
-if ! cdiff_git rev-parse -q --verify HEAD >/dev/null; then
+if ! dp_git rev-parse -q --verify HEAD >/dev/null; then
   printf '%sthe start of the repo%s\n' "$D" "$N"
   exit 0
 fi
-printf '%s%s%s %s· %s%s\n' "$Y" "$(cdiff_git log -1 --format=%h)" "$N" "$D" "$(cdiff_git log -1 --format=%ar)" "$N"
-cdiff_git log -1 --format=%s | fold -s -w "$width" | sed 's/ *$//' | while IFS= read -r l; do printf '%s%s%s\n' "$B" "$l" "$N"; done
+printf '%s%s%s %s· %s%s\n' "$Y" "$(dp_git log -1 --format=%h)" "$N" "$D" "$(dp_git log -1 --format=%ar)" "$N"
+dp_git log -1 --format=%s | fold -s -w "$width" | sed 's/ *$//' | while IFS= read -r l; do printf '%s%s%s\n' "$B" "$l" "$N"; done
 # Body without trailers (Co-Authored-By: ...), wrapped, at most 8 lines.
-body=$(cdiff_git log -1 --format=%b | grep -v -i -E '^[a-z-]+-by: ' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+body=$(dp_git log -1 --format=%b | grep -v -i -E '^[a-z-]+-by: ' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
 if [ -n "$body" ]; then
   printf '\n'
   printf '%s\n' "$body" | fold -s -w "$width" | sed 's/ *$//' | awk -v D="$D" -v N="$N" \

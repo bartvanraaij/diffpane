@@ -15,37 +15,37 @@ EOF
   case "$READONLY_TOOLS" in *" $tool "*) return 0 ;; esac
   # Bad input must not fall back to the hook's own cwd (`git -C ""` is a no-op).
   [ -n "$cwd" ] && [ "$cwd" != - ] && [ -d "$cwd" ] || return 0
-  cdiff_init "$cwd" || return 0
+  dp_init "$cwd" || return 0
 
-  cdiff_lock
-  cdiff_sync_head
+  dp_lock
+  dp_sync_head
   case "$event" in
     UserPromptSubmit)
-      echo $(($(cdiff_turn) + 1)) > "$CDIFF_STATE/turn"
-      cdiff_snapshot > "$CDIFF_STATE/t0"
+      echo $(($(dp_turn) + 1)) > "$DP_STATE/turn"
+      dp_snapshot > "$DP_STATE/t0"
       ;;
     PreToolUse)
-      cdiff_snapshot > "$CDIFF_STATE/pre/$id"
+      dp_snapshot > "$DP_STATE/pre/$id"
       ;;
     PostToolUse | PostToolUseFailure)
-      if [ -s "$CDIFF_STATE/pre/$id" ]; then
-        pre=$(cat "$CDIFF_STATE/pre/$id")
-        tree=$(cdiff_snapshot)
-        [ -n "$tree" ] && cdiff_git diff --name-only --no-renames -z "$pre" "$tree" | cdiff_record "$(cdiff_turn)"
+      if [ -s "$DP_STATE/pre/$id" ]; then
+        pre=$(cat "$DP_STATE/pre/$id")
+        tree=$(dp_snapshot)
+        [ -n "$tree" ] && dp_git diff --name-only --no-renames -z "$pre" "$tree" | dp_record "$(dp_turn)"
       fi
-      rm -f "$CDIFF_STATE/pre/$id"
+      rm -f "$DP_STATE/pre/$id"
       ;;
     Stop)
-      tree=$(cdiff_snapshot)
-      if [ -s "$CDIFF_STATE/t0" ] && [ -n "$tree" ]; then
-        cdiff_git diff --name-only --no-renames -z "$(cat "$CDIFF_STATE/t0")" "$tree" | cdiff_record_new "$(cdiff_turn)"
+      tree=$(dp_snapshot)
+      if [ -s "$DP_STATE/t0" ] && [ -n "$tree" ]; then
+        dp_git diff --name-only --no-renames -z "$(cat "$DP_STATE/t0")" "$tree" | dp_record_new "$(dp_turn)"
       fi
-      [ -n "$tree" ] && echo "$tree" > "$CDIFF_STATE/t0"
+      [ -n "$tree" ] && echo "$tree" > "$DP_STATE/t0"
       ;;
   esac
-  cdiff_unlock
+  dp_unlock
 
-  case "$event" in PostToolUse | PostToolUseFailure | Stop) cdiff_ping ;; esac
+  case "$event" in PostToolUse | PostToolUseFailure | Stop) dp_ping ;; esac
 }
 
 main >/dev/null 2>&1

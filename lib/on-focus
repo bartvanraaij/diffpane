@@ -4,29 +4,29 @@
 # the user moves off the newest row; marks the focused file seen.
 . "$(dirname "$0")/common.sh"
 
-cdiff_init "$PWD" || exit 0
+dp_init "$PWD" || exit 0
 n="$1" path="$2"
 [ -n "$n" ] || exit 0
-last=$(cat "$CDIFF_STATE/view.focus" 2>/dev/null)
-echo "$n" > "$CDIFF_STATE/view.focus"
+last=$(cat "$DP_STATE/view.focus" 2>/dev/null)
+echo "$n" > "$DP_STATE/view.focus"
 if [ -z "$path" ]; then
   if [ "$n" -eq 0 ] || [ "$n" -gt "${last:-0}" ]; then echo down; else echo up; fi
   exit 0
 fi
 actions=""
 
-if [ "$(cat "$CDIFF_STATE/follow" 2>/dev/null)" = on ] && [ "$n" != 0 ]; then
-  echo paused > "$CDIFF_STATE/follow"
-  cdiff_turn > "$CDIFF_STATE/view.paused-turn"  # on-change resumes follow after this turn
-  actions='transform-header($CDIFF_LIB/header)'
+if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = on ] && [ "$n" != 0 ]; then
+  echo paused > "$DP_STATE/follow"
+  dp_turn > "$DP_STATE/view.paused-turn"  # on-change resumes follow after this turn
+  actions='transform-header($DP_LIB/header)'
 fi
 
-row=$(awk -F'\t' -v p="$path" '$1 == p' "$CDIFF_STATE/view.list" 2>/dev/null)
+row=$(awk -F'\t' -v p="$path" '$1 == p' "$DP_STATE/view.list" 2>/dev/null)
 case "$row" in
   *●*)
-    total=$(wc -l < "$CDIFF_STATE/touched" 2>/dev/null | tr -d ' ')
-    printf '%s\t%s\n' "${total:-0}" "$path" >> "$CDIFF_STATE/seen"
-    more=$("$CDIFF_LIB/on-change" "$path")
+    total=$(wc -l < "$DP_STATE/touched" 2>/dev/null | tr -d ' ')
+    printf '%s\t%s\n' "${total:-0}" "$path" >> "$DP_STATE/seen"
+    more=$("$DP_LIB/on-change" "$path")
     [ -n "$more" ] && actions="${actions:+$actions+}$more"
     ;;
 esac

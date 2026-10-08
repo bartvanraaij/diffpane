@@ -2,28 +2,28 @@
 # Inline diff of one file against HEAD, rendered by delta. Usage: preview <path>
 . "$(dirname "$0")/common.sh"
 
-cdiff_init "$PWD" || exit 0
+dp_init "$PWD" || exit 0
 path="$1"
 [ -n "$path" ] || exit 0
-base=$(cdiff_base)
+base=$(dp_base)
 
 {
-  if cdiff_git cat-file -e "$base:$path" 2>/dev/null; then
-    cdiff_git --no-pager diff "$base" -- "$path"
+  if dp_git cat-file -e "$base:$path" 2>/dev/null; then
+    dp_git --no-pager diff "$base" -- "$path"
   else
-    cdiff_git --no-pager diff --no-index -- /dev/null "$path"
+    dp_git --no-pager diff --no-index -- /dev/null "$path"
   fi
 } | {
   # No file header: the list already shows which file this is.
   set -- --file-style=omit --hunk-header-style=omit \
     --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
-  if [ "$(cdiff_theme)" = light ]; then  # GitHub light diff colors
+  if [ "$(dp_theme)" = light ]; then  # GitHub light diff colors
     delta --light "$@" --plus-style='syntax #dafbe1' --plus-emph-style='syntax #aceebb' \
       --minus-style='syntax #ffebe9' --minus-emph-style='syntax #ffcecb'
-  else  # strong backgrounds; optional claude-diff syntax theme (themes/, see README) is
+  else  # strong backgrounds; optional diffpane syntax theme (themes/, see README) is
     # Monokai Extended with lighter comments. Without it delta warns on stderr and
     # falls back to its default, which is Monokai Extended.
-    delta --dark "$@" --syntax-theme=claude-diff 2>/dev/null \
+    delta --dark "$@" --syntax-theme=diffpane 2>/dev/null \
       --plus-style='syntax #2a6a3a' --plus-emph-style='syntax #3f9a55' \
       --minus-style='syntax #7a2a32' --minus-emph-style='syntax #b03a46'
   fi

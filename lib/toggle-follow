@@ -2,11 +2,11 @@
 # fzf 'f' key: follow on -> off; off or paused -> on (and jump to newest).
 . "$(dirname "$0")/common.sh"
 
-cdiff_init "$PWD" || exit 0
-if [ "$(cat "$CDIFF_STATE/follow" 2>/dev/null)" = on ]; then
-  echo off > "$CDIFF_STATE/follow"
-  echo 'transform-header($CDIFF_LIB/header)'
+dp_init "$PWD" || exit 0
+if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = on ]; then
+  echo off > "$DP_STATE/follow"
+  echo 'transform-header($DP_LIB/header)'
 else
-  echo on > "$CDIFF_STATE/follow"
-  echo 'first+transform-header($CDIFF_LIB/header)'
+  echo on > "$DP_STATE/follow"
+  echo 'first+transform-header($DP_LIB/header)'
 fi

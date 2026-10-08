@@ -1,0 +1,11 @@
+{
+  "name": "diffpane",
+  "displayName": "Diffpane",
+  "version": "0.1.0",
+  "description": "Live list and inline diff of every file Claude Code changes, however it changed them (Edit, sed, scripts, ...). Viewer for a tmux pane.",
+  "author": { "name": "Bart van Raaij" },
+  "homepage": "https://github.com/bartvanraaij/diffpane",
+  "repository": "https://github.com/bartvanraaij/diffpane",
+  "license": "MIT",
+  "keywords": ["diff", "review", "tmux", "fzf", "delta", "hooks"]
+}

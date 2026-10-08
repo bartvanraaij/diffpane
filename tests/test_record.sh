@@ -76,7 +76,7 @@ assert_eq "" "$out" "record prints nothing"
 mkdir -p "$TMPROOT/plain"
 out=$(hook "$TMPROOT/plain" PostToolUse Bash x; echo "rc=$?")
 assert_eq "rc=0" "$out" "outside a git repo: silent, exit 0"
-out=$(echo 'not json' | "$CDIFF_HOME/hooks/record"; echo "rc=$?")
+out=$(echo 'not json' | "$DP_HOME/hooks/record"; echo "rc=$?")
 assert_eq "rc=0" "$out" "garbage input: silent, exit 0"
 
 echo "record: commit inside a tool call keeps other changes from that call"

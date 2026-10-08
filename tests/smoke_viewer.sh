@@ -18,12 +18,12 @@ r=$(mkrepo smoke)
 printf '#!/bin/sh\nprintf "%%s" "$1" > "%s/opened"\n' "$TMPROOT" > "$TMPROOT/ed"
 chmod +x "$TMPROOT/ed"
 # Own config whose theme command reads a file the test can switch.
-cfg="$TMPROOT/cfg"; mkdir -p "$cfg/claude-diff"
+cfg="$TMPROOT/cfg"; mkdir -p "$cfg/diffpane"
 echo dark > "$TMPROOT/mode"
-echo "CLAUDE_DIFF_THEME_CMD='cat $TMPROOT/mode'" > "$cfg/claude-diff/config"
-$T new-session -d -s crtest -x 160 -y 40 -c "$r" "XDG_CONFIG_HOME=$cfg EDITOR=$TMPROOT/ed $CDIFF_HOME/bin/claude-diff"
+echo "DIFFPANE_THEME_CMD='cat $TMPROOT/mode'" > "$cfg/diffpane/config"
+$T new-session -d -s crtest -x 160 -y 40 -c "$r" "XDG_CONFIG_HOME=$cfg EDITOR=$TMPROOT/ed $DP_HOME/bin/diffpane"
 wait_for "No Claude changes since" && assert_eq ok ok "header shows empty state" || assert_eq ok fail "header shows empty state"
-assert_eq "Claude Diff" "$($T display -p -t crtest '#{pane_title}')" "pane title"
+assert_eq "Diffpane" "$($T display -p -t crtest '#{pane_title}')" "pane title"
 
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "live-change\n" >> a.txt'
@@ -32,8 +32,8 @@ wait_for "live-change" && assert_eq ok ok "preview shows the diff" || assert_eq 
 assert_eq "0" "$($T capture-pane -p -t crtest | grep -c '▌')" "no pointer/gutter rail"
 
 # Installed as a symlink on PATH: must still find its lib/.
-ln -s "$CDIFF_HOME/bin/claude-diff" "$TMPROOT/claude-diff-link"
-out=$(cd "$r" && "$TMPROOT/claude-diff-link" 2>&1; echo "rc=$?")
+ln -s "$DP_HOME/bin/diffpane" "$TMPROOT/diffpane-link"
+out=$(cd "$r" && "$TMPROOT/diffpane-link" 2>&1; echo "rc=$?")
 assert_eq "yes" "$(echo "$out" | grep -q 'already running' && echo yes)" "second viewer refuses to start"
 
 hook "$r" UserPromptSubmit >/dev/null   # second turn: a divider between posts and a.txt

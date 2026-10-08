@@ -4,39 +4,39 @@
 # Paused follow (from navigating) turns back on once a later turn changes files.
 . "$(dirname "$0")/common.sh"
 
-cdiff_init "$PWD" || exit 0
+dp_init "$PWD" || exit 0
 focused="$1"
 # Dragging the preview border fires no fzf event; this runs every few seconds
 # from the ticker, so redraw (list dividers, header alignment) on a width change.
-width=$(cdiff_list_width) header=""
-if [ "$width" != "$(cat "$CDIFF_STATE/view.width" 2>/dev/null)" ]; then
-  [ -f "$CDIFF_STATE/view.width" ] && header='+transform-header($CDIFF_LIB/header)'
-  echo "$width" > "$CDIFF_STATE/view.width"
+width=$(dp_list_width) header=""
+if [ "$width" != "$(cat "$DP_STATE/view.width" 2>/dev/null)" ]; then
+  [ -f "$DP_STATE/view.width" ] && header='+transform-header($DP_LIB/header)'
+  echo "$width" > "$DP_STATE/view.width"
 fi
-new=$("$CDIFF_LIB/list")
-if [ "$2" != --force ] && [ -z "$header" ] && [ "$new" = "$(cat "$CDIFF_STATE/view.list" 2>/dev/null)" ]; then
+new=$("$DP_LIB/list")
+if [ "$2" != --force ] && [ -z "$header" ] && [ "$new" = "$(cat "$DP_STATE/view.list" 2>/dev/null)" ]; then
   exit 0
 fi
 resume=no
-if [ "$(cat "$CDIFF_STATE/follow" 2>/dev/null)" = paused ] &&
-  [ "$(tail -1 "$CDIFF_STATE/touched" 2>/dev/null | cut -f1)" -gt "$(cat "$CDIFF_STATE/view.paused-turn" 2>/dev/null || echo 0)" ] 2>/dev/null; then
-  echo on > "$CDIFF_STATE/follow"
-  resume=yes header='+transform-header($CDIFF_LIB/header)'
+if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = paused ] &&
+  [ "$(tail -1 "$DP_STATE/touched" 2>/dev/null | cut -f1)" -gt "$(cat "$DP_STATE/view.paused-turn" 2>/dev/null || echo 0)" ] 2>/dev/null; then
+  echo on > "$DP_STATE/follow"
+  resume=yes header='+transform-header($DP_LIB/header)'
 fi
 same_rows=no
-[ "$(printf '%s\n' "$new" | cut -f1)" = "$(cut -f1 "$CDIFF_STATE/view.list" 2>/dev/null)" ] && same_rows=yes
-if [ -n "$new" ]; then printf '%s\n' "$new" > "$CDIFF_STATE/view.list"; else : > "$CDIFF_STATE/view.list"; fi
+[ "$(printf '%s\n' "$new" | cut -f1)" = "$(cut -f1 "$DP_STATE/view.list" 2>/dev/null)" ] && same_rows=yes
+if [ -n "$new" ]; then printf '%s\n' "$new" > "$DP_STATE/view.list"; else : > "$DP_STATE/view.list"; fi
 
-reload='reload-sync(cat "$CDIFF_STATE/view.list")'
+reload='reload-sync(cat "$DP_STATE/view.list")'
 # Same rows in the same order (only marks/stats changed): fzf keeps the cursor
 # by itself. Repositioning would undo a keypress that raced this reload.
 if [ "$same_rows" = yes ] && [ "$resume" = no ]; then
   echo "$reload$header"
   exit 0
 fi
-if [ "$(cat "$CDIFF_STATE/follow" 2>/dev/null)" = on ]; then
+if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = on ]; then
   echo "$reload+first$header"
   exit 0
 fi
-idx=$(cut -f1 "$CDIFF_STATE/view.list" | grep -nxF -- "$focused" | head -1 | cut -d: -f1)
+idx=$(cut -f1 "$DP_STATE/view.list" | grep -nxF -- "$focused" | head -1 | cut -d: -f1)
 if [ -n "$idx" ]; then echo "$reload+pos($idx)$header"; else echo "$reload+first$header"; fi

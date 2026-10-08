@@ -131,9 +131,10 @@ tests/smoke_tmux.sh     # layout/toggle helpers
 tests/bench.sh          # hook latency
 ```
 
-Installed plugins run from Claude Code's plugin cache. After changing a local
-checkout added with `claude plugin marketplace add <dir>`, run
-`claude plugin update diffpane@diffpane` and restart Claude.
+To work on a local checkout, add it as the marketplace instead
+(`claude plugin marketplace add ~/path/to/diffpane`). Claude Code then reads the
+hooks straight from that folder; edits apply at the next session start or after
+`/reload-plugins`.
 
 ## License
 

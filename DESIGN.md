@@ -129,8 +129,7 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
 | `r`              | manual reload                                     |
 | `q`              | quit                                              |
 
-`j/k` as navigation means fzf runs with search disabled (`--disabled` or
-`/` to enter search). Exact binding detail settled in implementation.
+No search. fzf runs with the query input disabled so `j/k` navigate.
 
 ## Wiring
 

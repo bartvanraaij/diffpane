@@ -6,13 +6,19 @@ export CR_HOME CR_LIB
 
 # cr_init <dir>: resolve repo root and state dir. Returns 1 outside a git work tree.
 cr_init() {
-  local dir="${1:-$PWD}" gitdir
-  CR_ROOT=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || return 1
-  gitdir=$(git -C "$dir" rev-parse --absolute-git-dir 2>/dev/null) || return 1
+  local dir="${1:-$PWD}" out gitdir
+  # One git spawn (~7ms each) for root, git dir and HEAD; a repo without commits fails on HEAD.
+  out=$(git -C "$dir" rev-parse --show-toplevel --absolute-git-dir HEAD 2>/dev/null) ||
+    out=$(git -C "$dir" rev-parse --show-toplevel --absolute-git-dir 2>/dev/null) || return 1
+  CR_HEAD=""
+  { read -r CR_ROOT; read -r gitdir; read -r CR_HEAD; } <<EOF
+$out
+EOF
+  CR_HEAD=${CR_HEAD:-none}
   CR_STATE="$gitdir/claude-review"
   CR_REAL_INDEX="$gitdir/index"
   mkdir -p "$CR_STATE/pre" || return 1
-  export CR_ROOT CR_STATE CR_REAL_INDEX
+  export CR_ROOT CR_STATE CR_REAL_INDEX CR_HEAD
 }
 
 cr_git() { git -C "$CR_ROOT" -c core.quotepath=off "$@"; }
@@ -38,9 +44,9 @@ cr_lock() {
 cr_unlock() { rmdir "$CR_STATE/lock" 2>/dev/null; }
 
 # Wipe state when HEAD moved (commit, amend, checkout). Call with the lock held.
+# Uses the HEAD that cr_init resolved.
 cr_sync_head() {
-  local head
-  head=$(cr_git rev-parse -q --verify HEAD 2>/dev/null || echo none)
+  local head="$CR_HEAD"
   [ "$(cat "$CR_STATE/head" 2>/dev/null)" = "$head" ] && return 0
   rm -f "$CR_STATE/touched" "$CR_STATE/seen" "$CR_STATE/turn" "$CR_STATE/t0" "$CR_STATE"/pre/*
   # Seed the private index from the real one so the first snapshot reuses its stat cache.
@@ -75,10 +81,9 @@ cr_record_new() {
 
 # Viewer socket path. Kept short: macOS caps unix socket paths at 104 bytes,
 # which a deep repo path under .git would exceed.
+# Hot path (every hook): no mkdir, cheap cksum. The viewer creates the dir.
 cr_sock() {
-  local dir="/tmp/claude-review-$(id -u)"
-  mkdir -p "$dir" && chmod 700 "$dir"
-  echo "$dir/$(printf '%s' "$CR_STATE" | shasum | cut -c1-12).sock"
+  echo "/tmp/claude-review-$UID/$(printf '%s' "$CR_STATE" | cksum | cut -d' ' -f1).sock"
 }
 
 # Ask a running viewer to refresh. Never blocks. $CR_LIB and {1} expand inside fzf.

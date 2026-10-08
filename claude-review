@@ -6,6 +6,7 @@
 cr_init "$PWD" || { echo "claude-review: not inside a git work tree" >&2; exit 1; }
 cd "$CR_ROOT" || exit 1
 sock=$(cr_sock)
+mkdir -p "${sock%/*}" && chmod 700 "${sock%/*}"
 
 if [ -S "$sock" ] && curl -s --max-time 1 --unix-socket "$sock" http://localhost >/dev/null 2>&1; then
   echo "claude-review: already running for $CR_ROOT" >&2

@@ -24,8 +24,8 @@ line() {  # <left> <left width> <right> <right width>
   printf '%s%*s%s\n' "$1" "$gap" '' "$3"
 }
 repo=$(basename "$CR_ROOT")
-line "$B$repo$N" "${#repo}" "$D$files$N" "${#files}"
-line "$D$turns$N" "${#turns}" "$follow" 1
+line "$B$repo$N" "${#repo}" "$follow" 1
+line "$D$turns$N" "${#turns}" "$D$files$N" "${#files}"
 if [ "$n" -eq 0 ]; then
   printf '%sNo Claude changes since %s%s\n' "$D" "$(cr_git log -1 --format='%h %s' 2>/dev/null || echo 'repo start')" "$N"
 fi

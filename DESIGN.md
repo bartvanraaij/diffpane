@@ -102,7 +102,7 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
      different repos don't cross
    - periodic reload fallback (a few seconds) to catch commits made outside
      Claude
-   - header: `<repo>  <n> files changed` / `<t> turns  ●|⏸|○` (follow on, paused, off),
+   - header: `<repo>  ●|⏸|○` (follow on, paused, off) / `<t> turns  <n> files changed`,
      counts right-aligned; diff pane has no file header (the list shows it)
    - tmux pane title `Claude Review`
    - empty state: `No Claude changes since <short sha> <subject>`

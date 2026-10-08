@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Print viewer rows "<path>\t<display>", newest change first.
+# Files that no longer differ from HEAD are skipped.
+. "$(dirname "$0")/common.sh"
+
+cr_init "$PWD" || exit 0
+cr_lock; cr_sync_head; cr_unlock
+[ -s "$CR_STATE/touched" ] || exit 0
+
+base=$(cr_base)
+TAB=$(printf '\t')
+Y=$'\033[33m' G=$'\033[32m' R=$'\033[31m' C=$'\033[36m' D=$'\033[2m' N=$'\033[0m'
+
+# Newest log line per path, newest first: "<line>\t<turn>\t<path>".
+awk -F'\t' '{ line[$2] = NR; turn[$2] = $1 }
+  END { for (p in line) printf "%d\t%s\t%s\n", line[p], turn[p], p }' "$CR_STATE/touched" |
+  sort -t "$TAB" -k1,1nr |
+  while IFS="$TAB" read -r line turn path; do
+    tag=""
+    if cr_git cat-file -e "$base:$path" 2>/dev/null; then
+      [ -e "$CR_ROOT/$path" ] || [ -L "$CR_ROOT/$path" ] || tag=deleted
+      stat=$(cr_git diff --numstat "$base" -- "$path")
+      [ -n "$stat" ] || continue
+      add=$(printf '%s' "$stat" | cut -f1)
+      del=$(printf '%s' "$stat" | cut -f2)
+    else
+      [ -f "$CR_ROOT/$path" ] || continue
+      tag=new
+      add=$(wc -l < "$CR_ROOT/$path" | tr -d ' ')
+      del=0
+    fi
+    seen=$(awk -F'\t' -v p="$path" '$2 == p { s = $1 } END { print s + 0 }' "$CR_STATE/seen" 2>/dev/null)
+    mark=" "
+    [ "$line" -gt "${seen:-0}" ] && mark="${Y}●${N}"
+    printf '%s\t%s %s%s%s  %s  %s+%s%s %s−%s%s%s\n' \
+      "$path" "$mark" "$D" "$turn" "$N" "$path" "$G" "$add" "$N" "$R" "$del" "$N" "${tag:+  $C$tag$N}"
+  done

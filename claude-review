@@ -50,9 +50,11 @@ while :; do
     [ -n "$idx" ] && refocus="load:pos($idx)+unbind(load)"  # once, after input is read
   fi
   rm -f "$restart"
+  colors=$(cr_theme)
+  [ "$colors" = light ] && colors="light,bg+:#eaeef2"  # default light bg+ (251) is too dark
   fzf < "$CR_STATE/view.list" \
     --listen="$sock" \
-    --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$(cr_theme)" \
+    --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$colors" \
     --delimiter='\t' --with-nth=2 \
     --preview '$CR_LIB/preview {1}' \
     --preview-window 'right,70%,border-left' \

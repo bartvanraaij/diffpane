@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# tmux: toggle the claude-diff pane left of a pane. Usage: toggle <pane_id>
+pane="${1:-$TMUX_PANE}"
+existing=$(tmux list-panes -t "$pane" -F '#{pane_id} #{@claude-diff}' | awk '$2 == 1 { print $1; exit }')
+if [ -n "$existing" ]; then
+  tmux kill-pane -t "$existing"
+  exit 0
+fi
+dir=$(tmux display -p -t "$pane" '#{pane_current_path}')
+new=$(tmux split-window -hbd -l 67% -t "$pane" -c "$dir" -P -F '#{pane_id}' \
+  "$(printf %q "$(cd "$(dirname "$0")/.." && pwd)/bin/claude-diff") || sleep 3")
+tmux set -p -t "$new" @claude-diff 1

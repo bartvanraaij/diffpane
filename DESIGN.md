@@ -1,4 +1,4 @@
-# claude-review — design
+# claude-diff — design
 
 Date: 2026-10-08
 
@@ -38,11 +38,11 @@ viewer (fzf):  list  = `list` script output
 
 ### Snapshot mechanism
 
-A private git index at `$GIT_DIR/claude-review/index`:
+A private git index at `$GIT_DIR/claude-diff/index`:
 
 ```
-GIT_INDEX_FILE=$GIT_DIR/claude-review/index git add -A
-GIT_INDEX_FILE=$GIT_DIR/claude-review/index git write-tree   # -> tree sha
+GIT_INDEX_FILE=$GIT_DIR/claude-diff/index git add -A
+GIT_INDEX_FILE=$GIT_DIR/claude-diff/index git write-tree   # -> tree sha
 ```
 
 - Never touches the user's real index or staging.
@@ -63,7 +63,7 @@ Edit, Write, MultiEdit, NotebookEdit and Agent, snapshot.
 
 ### State
 
-Per repo in `$(git rev-parse --git-dir)/claude-review/` (worktrees get their
+Per repo in `$(git rev-parse --git-dir)/claude-diff/` (worktrees get their
 own):
 
 | File      | Content                                             |
@@ -81,7 +81,7 @@ rebase, checkout.
 
 ## Components
 
-All under `~/.config/claude-review/`, tracked in dotfiles.
+All under `~/.config/claude-diff/`, tracked in dotfiles.
 
 1. **`record`** — the single hook entry point. Reads hook JSON on stdin
    (`hook_event_name`, `tool_name`, `cwd`). Dispatches on event as in the
@@ -94,7 +94,7 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
    divider rows (empty path, skipped when navigating). File rows:
    `<M|A|D> +<add> −<del>  <name>[ ●]  <dir>`, stat columns right-aligned.
    Untracked new files are diffed against `/dev/null`.
-3. **`claude-review`** — the viewer. Runs fzf with:
+3. **`claude-diff`** — the viewer. Runs fzf with:
    - list left (~30%), preview right (`--preview-window=right,70%`)
    - preview: `git diff HEAD -- <file> | delta` (or `--no-index /dev/null`
      for untracked), using the user's existing delta config/theme
@@ -107,7 +107,7 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
    - tmux pane title `Claude Diff`
    - empty state: `No Claude changes since <short sha> <subject>`
 4. **`layout`** — tmux helper: opens a new window in the current pane's
-   directory with `claude-review` in the left 67% and `claude` in the right
+   directory with `claude-diff` in the left 67% and `claude` in the right
    33% pane. A new window, not a split of the current one, so whatever runs
    in the current pane is left alone.
 5. **`toggle`** — tmux helper: create the viewer pane left of the current
@@ -124,7 +124,7 @@ All under `~/.config/claude-review/`, tracked in dotfiles.
   - `f` while off/paused turns follow on; `f` while on turns it off (`○`).
   - Paused follow turns back on when a later turn changes files; follow
     switched off with `f` stays off.
-- Light/dark follows the `theme` tool's Ghostty file (`CR_THEME` overrides).
+- Light/dark follows the `theme` tool's Ghostty file (`CLAUDE_DIFF_THEME` overrides).
   fzf can't recolor live, so the ticker restarts fzf within ~3s of a switch,
   keeping the selected file when follow is off.
 
@@ -144,13 +144,13 @@ No search. fzf runs with the query input disabled so `j/k` navigate.
 ## Wiring
 
 - `~/.claude/settings.json`: hooks `UserPromptSubmit`, `PreToolUse`,
-  `PostToolUse`, `Stop` all call `~/.config/claude-review/record`. Global, so
+  `PostToolUse`, `Stop` all call `~/.config/claude-diff/record`. Global, so
   every repo records whether or not a viewer is open; a viewer started late
   still shows everything since the last commit.
 - `~/.config/tmux/tmux.conf`:
   - `prefix + C` → `layout` (overrides default customize-mode)
   - `prefix + g` → `toggle`
-- Plain command `claude-review` usable in any pane.
+- Plain command `claude-diff` usable in any pane.
 
 ## Edge cases
 

@@ -1,5 +1,5 @@
-# Tiny assert lib and fixtures for claude-review tests. Bash 3.2.
-CR_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Tiny assert lib and fixtures for claude-diff tests. Bash 3.2.
+CDIFF_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FAILS=0
 TMPROOT=$(mktemp -d)
 trap 'rm -rf "$TMPROOT"' EXIT
@@ -33,7 +33,7 @@ hook() {
     '{hook_event_name: $e, cwd: $c}
      + (if $t != "" then {tool_name: $t} else {} end)
      + (if $i != "" then {tool_use_id: $i} else {} end)' |
-    "$CR_HOME/record"
+    "$CDIFF_HOME/hooks/record"
 }
 
 # tool <repo> <id> <cmd...>: run cmd in repo wrapped in Pre/PostToolUse, like a Bash tool call.
@@ -45,16 +45,16 @@ tool() {
   hook "$repo" PostToolUse Bash "$id" >/dev/null
 }
 
-state() { echo "$(git -C "$1" rev-parse --absolute-git-dir)/claude-review"; }
+state() { echo "$(git -C "$1" rev-parse --absolute-git-dir)/claude-diff"; }
 
 # touched <repo>: paths in the touched log, in log order.
 touched() { cut -f2 "$(state "$1")/touched" 2>/dev/null; }
 
 # rows <repo>: list paths (field 1) in display order, turn title rows left out.
-rows() { (cd "$1" && "$CR_HOME/lib/list") | cut -f1 | grep -v '^$'; }
+rows() { (cd "$1" && "$CDIFF_HOME/lib/list") | cut -f1 | grep -v '^$'; }
 
 # display <repo>: list display column without ANSI codes. 100 columns: list is 30 wide.
-display() { (cd "$1" && FZF_COLUMNS=100 "$CR_HOME/lib/list") | cut -f2 | sed $'s/\033\\[[0-9;]*m//g'; }
+display() { (cd "$1" && FZF_COLUMNS=100 "$CDIFF_HOME/lib/list") | cut -f2 | sed $'s/\033\\[[0-9;]*m//g'; }
 
 finish() {
   if [ "$FAILS" -eq 0 ]; then echo "all passed"; else echo "$FAILS failed"; exit 1; fi

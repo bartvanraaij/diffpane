@@ -2,7 +2,7 @@
 # Claude Code hook entry point: UserPromptSubmit, PreToolUse, PostToolUse,
 # PostToolUseFailure, Stop. Records which files Claude changed, however it
 # changed them. Must never block, fail or print.
-. "$(dirname "$0")/lib/common.sh"
+. "$(dirname "$0")/../lib/common.sh"
 
 READONLY_TOOLS=" Read Grep Glob LS WebFetch WebSearch TodoWrite ToolSearch Skill AskUserQuestion TaskCreate TaskGet TaskList TaskUpdate TaskOutput "
 
@@ -15,37 +15,37 @@ EOF
   case "$READONLY_TOOLS" in *" $tool "*) return 0 ;; esac
   # Bad input must not fall back to the hook's own cwd (`git -C ""` is a no-op).
   [ -n "$cwd" ] && [ "$cwd" != - ] && [ -d "$cwd" ] || return 0
-  cr_init "$cwd" || return 0
+  cdiff_init "$cwd" || return 0
 
-  cr_lock
-  cr_sync_head
+  cdiff_lock
+  cdiff_sync_head
   case "$event" in
     UserPromptSubmit)
-      echo $(($(cr_turn) + 1)) > "$CR_STATE/turn"
-      cr_snapshot > "$CR_STATE/t0"
+      echo $(($(cdiff_turn) + 1)) > "$CDIFF_STATE/turn"
+      cdiff_snapshot > "$CDIFF_STATE/t0"
       ;;
     PreToolUse)
-      cr_snapshot > "$CR_STATE/pre/$id"
+      cdiff_snapshot > "$CDIFF_STATE/pre/$id"
       ;;
     PostToolUse | PostToolUseFailure)
-      if [ -s "$CR_STATE/pre/$id" ]; then
-        pre=$(cat "$CR_STATE/pre/$id")
-        tree=$(cr_snapshot)
-        [ -n "$tree" ] && cr_git diff --name-only --no-renames -z "$pre" "$tree" | cr_record "$(cr_turn)"
+      if [ -s "$CDIFF_STATE/pre/$id" ]; then
+        pre=$(cat "$CDIFF_STATE/pre/$id")
+        tree=$(cdiff_snapshot)
+        [ -n "$tree" ] && cdiff_git diff --name-only --no-renames -z "$pre" "$tree" | cdiff_record "$(cdiff_turn)"
       fi
-      rm -f "$CR_STATE/pre/$id"
+      rm -f "$CDIFF_STATE/pre/$id"
       ;;
     Stop)
-      tree=$(cr_snapshot)
-      if [ -s "$CR_STATE/t0" ] && [ -n "$tree" ]; then
-        cr_git diff --name-only --no-renames -z "$(cat "$CR_STATE/t0")" "$tree" | cr_record_new "$(cr_turn)"
+      tree=$(cdiff_snapshot)
+      if [ -s "$CDIFF_STATE/t0" ] && [ -n "$tree" ]; then
+        cdiff_git diff --name-only --no-renames -z "$(cat "$CDIFF_STATE/t0")" "$tree" | cdiff_record_new "$(cdiff_turn)"
       fi
-      [ -n "$tree" ] && echo "$tree" > "$CR_STATE/t0"
+      [ -n "$tree" ] && echo "$tree" > "$CDIFF_STATE/t0"
       ;;
   esac
-  cr_unlock
+  cdiff_unlock
 
-  case "$event" in PostToolUse | PostToolUseFailure | Stop) cr_ping ;; esac
+  case "$event" in PostToolUse | PostToolUseFailure | Stop) cdiff_ping ;; esac
 }
 
 main >/dev/null 2>&1

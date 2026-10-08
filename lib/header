@@ -25,7 +25,23 @@ line() {  # <left> <left width> <right> <right width>
 }
 repo=$(basename "$CR_ROOT")
 line "$B$repo$N" "${#repo}" "$follow" 1
-line "$D$turns$N" "${#turns}" "$D$files$N" "${#files}"
-if [ "$n" -eq 0 ]; then
-  printf '%sNo Claude changes since %s%s\n' "$D" "$(cr_git log -1 --format='%h %s' 2>/dev/null || echo 'repo start')" "$N"
+if [ "$n" -gt 0 ]; then
+  line "$D$turns$N" "${#turns}" "$D$files$N" "${#files}"
+  exit 0
+fi
+
+# Empty state: the commit everything is compared against, message in full.
+printf '\nNo Claude changes since\n'
+if ! cr_git rev-parse -q --verify HEAD >/dev/null; then
+  printf '%sthe start of the repo%s\n' "$D" "$N"
+  exit 0
+fi
+printf '%s%s%s %s· %s%s\n' "$Y" "$(cr_git log -1 --format=%h)" "$N" "$D" "$(cr_git log -1 --format=%ar)" "$N"
+cr_git log -1 --format=%s | fold -s -w "$width" | sed 's/ *$//' | while IFS= read -r l; do printf '%s%s%s\n' "$B" "$l" "$N"; done
+# Body without trailers (Co-Authored-By: ...), wrapped, at most 8 lines.
+body=$(cr_git log -1 --format=%b | grep -v -i -E '^[a-z-]+-by: ' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+if [ -n "$body" ]; then
+  printf '\n'
+  printf '%s\n' "$body" | fold -s -w "$width" | sed 's/ *$//' | awk -v D="$D" -v N="$N" \
+    'NR <= 8 { print D $0 N } NR == 9 { print D "…" N }'
 fi

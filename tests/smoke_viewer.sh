@@ -21,7 +21,7 @@ chmod +x "$TMPROOT/ed"
 h="$TMPROOT/home"; mkdir -p "$h/.config/ghostty"
 echo "theme = GitHub Dark Default" > "$h/.config/ghostty/theme.ghostty"
 $T new-session -d -s crtest -x 160 -y 40 -c "$r" "HOME=$h EDITOR=$TMPROOT/ed $CR_HOME/claude-review"
-wait_for "0 files changed" && assert_eq ok ok "header shows empty state" || assert_eq ok fail "header shows empty state"
+wait_for "No Claude changes since" && assert_eq ok ok "header shows empty state" || assert_eq ok fail "header shows empty state"
 assert_eq "Claude Review" "$($T display -p -t crtest '#{pane_title}')" "pane title"
 
 hook "$r" UserPromptSubmit >/dev/null
@@ -62,6 +62,6 @@ $T send-keys -t crtest k; sleep 0.5
 assert_eq 'posts.$id.txt' "$(focused '48;5;236')" "divider is skipped going up"
 
 git -C "$r" add -A && git -C "$r" commit -qm done
-wait_for "0 files" && assert_eq ok ok "ticker picks up user commit" || assert_eq ok fail "ticker picks up user commit"
+wait_for "No Claude changes since" && assert_eq ok ok "ticker picks up user commit" || assert_eq ok fail "ticker picks up user commit"
 
 finish

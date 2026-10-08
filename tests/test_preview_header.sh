@@ -45,9 +45,20 @@ st=$(state "$r"); mkdir -p "$st"
 : > "$st/view.list"
 sha=$(git -C "$r" rev-parse --short HEAD)
 hdr() { (cd "$r" && FZF_COLUMNS=100 "$CR_HOME/lib/header") | strip; }  # list column: 30 wide
-assert_eq "head                        ○
-0 turns       0 files changed
-No Claude changes since $sha init" "$(hdr)" "empty state, counts right-aligned"
+out=$(hdr)
+assert_eq "head$(printf '%24s' '')○" "$(echo "$out" | sed -n 1p)" "empty state: repo and follow icon"
+assert_eq "" "$(echo "$out" | sed -n 2p)" "empty state: no counts line, a spacer"
+assert_eq "No Claude changes since" "$(echo "$out" | sed -n 3p)" "empty state: plain text"
+assert_eq "yes" "$(echo "$out" | sed -n 4p | grep -q "^$sha · .* ago$" && echo yes)" "empty state: sha and relative time"
+assert_eq "init" "$(echo "$out" | sed -n 5p)" "empty state: subject"
+git -C "$r" commit -q --allow-empty -m "A rather long subject line that needs wrapping to fit" \
+  -m "Body explains why. It is also long enough to wrap." -m "Co-Authored-By: Someone <x@y>"
+out=$(hdr)
+assert_eq "A rather long subject line
+that needs wrapping to fit" "$(echo "$out" | sed -n 5,6p)" "long subject wraps at word boundaries"
+assert_eq "yes" "$(echo "$out" | grep -q 'Body explains why' && echo yes)" "body shown"
+assert_eq "0" "$(echo "$out" | grep -c 'Co-Authored-By')" "trailers left out"
+assert_eq "0" "$(echo "$out" | sed 's/[○●⏸·]/x/g' | awk 'length > 29' | wc -l | tr -d ' ')" "nothing wider than the list column"
 printf 'a.txt\tx\n' > "$st/view.list"
 echo on > "$st/follow"
 assert_eq "head                        ●

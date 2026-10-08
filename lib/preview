@@ -17,8 +17,9 @@ base=$(cr_base)
   delta --light --plus-style='syntax #dafbe1' --plus-emph-style='syntax #aceebb' \
     --minus-style='syntax #ffebe9' --minus-emph-style='syntax #ffcecb' \
     --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
-else  # strong backgrounds need light text; syntax colors are too dark on them
-  delta --dark --plus-style='#f0fff4 #2a6a3a' --plus-emph-style='#ffffff #3f9a55 bold' \
-    --minus-style='#fff0f0 #7a2a32' --minus-emph-style='#ffffff #b03a46 bold' \
+else  # strong backgrounds; claude-review theme = Monokai Extended with lighter comments
+  delta --dark --syntax-theme=claude-review \
+    --plus-style='syntax #2a6a3a' --plus-emph-style='syntax #3f9a55' \
+    --minus-style='syntax #7a2a32' --minus-emph-style='syntax #b03a46' \
     --true-color=always --paging=never --width="${FZF_PREVIEW_COLUMNS:-80}"
 fi

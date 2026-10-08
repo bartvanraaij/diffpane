@@ -33,7 +33,9 @@ out=$(cd "$r" && CR_THEME=light "$CR_HOME/lib/preview" a.txt)
 assert_eq "yes" "$(echo "$out" | grep -q '48;2;218;251;225' && echo yes)" "light preview: light green added bg"
 out=$(cd "$r" && CR_THEME=dark "$CR_HOME/lib/preview" a.txt)
 assert_eq "yes" "$(echo "$out" | grep -q '48;2;42;106;58' && echo yes)" "dark preview: stronger green added bg"
-assert_eq "yes" "$(echo "$out" | grep -q '38;2;240;255;244' && echo yes)" "dark preview: near-white text on changed lines"
+printf '// note\n' > "$r/n.cs"
+out=$(cd "$r" && CR_THEME=dark "$CR_HOME/lib/preview" n.cs)
+assert_eq "yes" "$(echo "$out" | grep -q '38;2;180;176;154' && echo yes)" "dark preview: added comment keeps syntax, lighter comment color"
 
 echo "header"
 r=$(mkrepo head)

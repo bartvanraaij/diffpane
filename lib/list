@@ -1,49 +1,100 @@
 #!/usr/bin/env bash
-# Print viewer rows "<path>\t<display>", newest change first.
-# Files that no longer differ from HEAD are skipped.
-# Runs inside fzf transforms, so it stays at a fixed number of git calls
-# regardless of how many files changed.
+# Print viewer rows "<path>\t<display>\t<turn>" for the current view
+# ($DP_STATE/view, default turns; see DESIGN.md "Views"):
+#   turns  one row per file per turn, newest turn first, divider rows between
+#          turns; stats are the turn's own change. Turns without a start
+#          snapshot are left out.
+#   files  one row per file, newest change first; stats against HEAD; turn empty.
+# Rows with no change left (reverted) are skipped.
+# Runs inside fzf transforms, so the number of git calls stays fixed per
+# reload: finished turns' stats are cached, only the running turn is diffed.
 . "$(dirname "$0")/common.sh"
 
 dp_init "$PWD" || exit 0
-dp_lock; dp_sync_head; dp_unlock
-[ -s "$DP_STATE/touched" ] || exit 0
-cd "$DP_ROOT" || exit 0
-
-base=$(dp_base)
-TAB=$(printf '\t')
+view=$(cat "$DP_STATE/view" 2>/dev/null)
+[ "$view" = files ] || view=turns
 tmp=$(mktemp -d) || exit 0
 trap 'rm -rf "$tmp"' EXIT
 
-# Newest log line per path, newest first: "<line>\t<turn>\t<path>".
-awk -F'\t' '{ line[$2] = NR; turn[$2] = $1 }
-  END { for (p in line) printf "%d\t%s\t%s\n", line[p], turn[p], p }' "$DP_STATE/touched" |
-  sort -t "$TAB" -k1,1nr > "$tmp/rows"
-
-paths=()
-while IFS="$TAB" read -r _ _ path; do paths+=("$path"); done < "$tmp/rows"
-
-dp_git ls-tree -r --name-only -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/inbase"
-dp_git diff --numstat --no-renames -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/numstat"
-for p in "${paths[@]}"; do
-  if [ -e "$p" ] || [ -L "$p" ]; then printf '%s\n' "$p"; fi
-done > "$tmp/exists"
+dp_lock
+dp_sync_head
+if [ "$view" = turns ] && [ -s "$DP_STATE/touched" ]; then
+  dp_turn_ranges > "$tmp/ranges"
+  # The running turn (no end yet) is diffed against a fresh snapshot, but only
+  # if it changed files.
+  running=$(awk -F'\t' '$3 == "" { print $1 }' "$tmp/ranges")
+  if [ -n "$running" ] && cut -f1 "$DP_STATE/touched" | grep -qxF "$running"; then
+    live=$(dp_snapshot)
+  fi
+fi
+dp_unlock
+[ -s "$DP_STATE/touched" ] || exit 0
+cd "$DP_ROOT" || exit 0
+TAB=$(printf '\t')
 seen="$DP_STATE/seen"
 [ -f "$seen" ] || seen=/dev/null
+: > "$tmp/inbase"; : > "$tmp/numstat"; : > "$tmp/exists"; : > "$tmp/turnstat"
 
-# Turns are separated by a divider row with an empty path.
+if [ "$view" = turns ]; then
+  # Newest log line per (turn, path): newest turn first, then newest change.
+  awk -F'\t' '{ line[$1 FS $2] = NR } END { for (k in line) printf "%d\t%s\n", line[k], k }' "$DP_STATE/touched" |
+    sort -t "$TAB" -k2,2nr -k1,1nr > "$tmp/rows"
+  # Per turn: "<turn>\t<file>" with `git diff --raw --numstat` between its trees.
+  # Keyed by the tree pair, so a cached diff is never stale.
+  mkdir -p "$DP_STATE/turnstat"
+  cut -f2 "$tmp/rows" | sort -u > "$tmp/turns"
+  while IFS="$TAB" read -r turn start end; do
+    end=${end:-$live}
+    [ -n "$start" ] && [ -n "$end" ] || continue
+    grep -qxF "$turn" "$tmp/turns" || continue
+    f="$DP_STATE/turnstat/$start-$end"
+    [ -f "$f" ] || dp_git diff --raw --numstat -z --no-renames "$start" "$end" | tr '\0' '\n' > "$f"
+    printf '%s\t%s\n' "$turn" "$f"
+  done < "$tmp/ranges" > "$tmp/turnstat"
+else
+  # Newest log line per path, newest first: "<line>\t<turn>\t<path>".
+  awk -F'\t' '{ line[$2] = NR; turn[$2] = $1 }
+    END { for (p in line) printf "%d\t%s\t%s\n", line[p], turn[p], p }' "$DP_STATE/touched" |
+    sort -t "$TAB" -k1,1nr > "$tmp/rows"
+  paths=()
+  while IFS="$TAB" read -r _ _ path; do paths+=("$path"); done < "$tmp/rows"
+  base=$(dp_base)
+  dp_git ls-tree -r --name-only -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/inbase"
+  dp_git diff --numstat --no-renames -z "$base" -- "${paths[@]}" | tr '\0' '\n' > "$tmp/numstat"
+  for p in "${paths[@]}"; do
+    if [ -e "$p" ] || [ -L "$p" ]; then printf '%s\n' "$p"; fi
+  done > "$tmp/exists"
+fi
+
 # File row display: "<M|A|D> <+add> <−del>  <name>[ ●]  <dir>", stat columns right-aligned, zeros blank,
-# ● = changed since last viewed.
-awk -F'\t' -v width="$(dp_list_width)" \
+# ● = changed since last viewed. Turns view: a divider row (empty path) between turns.
+awk -F'\t' -v view="$view" -v width="$(dp_list_width)" \
   -v Y=$'\033[33m' -v G=$'\033[32m' -v R=$'\033[31m' -v B=$'\033[34m' -v D=$'\033[2m' -v N=$'\033[0m' '
   function pad(n) { return sprintf("%" n "s", "") }
+  function max(a, b) { return a + 0 > b + 0 ? a : b }
   FILENAME == ARGV[1] { inbase[$0] = 1; next }
   FILENAME == ARGV[2] { add[$3] = $1; del[$3] = $2; changed[$3] = 1; next }
   FILENAME == ARGV[3] { exists[$0] = 1; next }
-  FILENAME == ARGV[4] { seen[$2] = $1; next }
+  FILENAME == ARGV[4] { sk = $2 SUBSEP $3; seen[sk] = max(seen[sk], $1); next }  # <total> <path> [<turn>]
+  FILENAME == ARGV[5] {  # <turn> <file>: raw lines (":... <status>", then path) and numstat lines
+    t = $1
+    while ((getline l < $2) > 0) {
+      if (l ~ /^:/) { s = substr(l, length(l)); getline p < $2; tst[t, p] = s; continue }
+      n = index(l, "\t"); a = substr(l, 1, n - 1); l = substr(l, n + 1)
+      n = index(l, "\t"); d = substr(l, 1, n - 1); p = substr(l, n + 1)
+      tadd[t, p] = a; tdel[t, p] = d
+    }
+    close($2)
+    next
+  }
   {
     line = $1; turn = $2; path = $3
-    if (path in inbase) {
+    if (view == "turns") {
+      if (!((turn, path) in tst)) next
+      s = tst[turn, path]; a = tadd[turn, path]; d = tdel[turn, path]
+      st = s == "A" ? G "A" : s == "D" ? R "D" : Y "M"
+      seenline = max(seen[path, ""], seen[path, turn])
+    } else if (path in inbase) {
       if (!(path in changed)) next
       a = add[path]; d = del[path]; st = (path in exists) ? Y "M" : R "D"
     } else {
@@ -54,19 +105,20 @@ awk -F'\t' -v width="$(dp_list_width)" \
       if (r < 0) next
       a = n; d = 0; st = G "A"
     }
+    if (view != "turns") seenline = max(seen[path, ""], seen[path, turn])
     k++; P[k] = path; T[k] = turn; S[k] = st N; A[k] = a; Dl[k] = d
-    U[k] = (line > seen[path] + 0) ? " " B "●" N : ""
+    U[k] = (line > seenline + 0) ? " " B "●" N : ""
     if (a + 0 && length(a) > wa) wa = length(a)  # zero counts are left blank;
     if (d + 0 && length(d) > wd) wd = length(d)  # an all-zero column is dropped
   }
   END {
     for (i = 0; i < width; i++) rule = rule "─"
     for (i = 1; i <= k; i++) {
-      if (i > 1 && T[i] != T[i - 1]) printf "\t%s%s%s\n", D, rule, N
+      if (view == "turns" && i > 1 && T[i] != T[i - 1]) printf "\t%s%s%s\t\n", D, rule, N
       name = P[i]; dir = ""
       if (match(P[i], /.*\//)) { dir = "  " D substr(P[i], 1, RLENGTH - 1) N; name = substr(P[i], RLENGTH + 1) }
       ca = !wa ? "" : A[i] + 0 ? " " pad(wa - length(A[i])) G "+" A[i] N : pad(wa + 2)
       cd = !wd ? "" : Dl[i] + 0 ? " " pad(wd - length(Dl[i])) R "−" Dl[i] N : pad(wd + 2)
-      printf "%s\t%s%s%s  %s%s%s\n", P[i], S[i], ca, cd, name, U[i], dir
+      printf "%s\t%s%s%s  %s%s%s\t%s\n", P[i], S[i], ca, cd, name, U[i], dir, (view == "turns" ? T[i] : "")
     }
-  }' "$tmp/inbase" "$tmp/numstat" "$tmp/exists" "$seen" "$tmp/rows"
+  }' "$tmp/inbase" "$tmp/numstat" "$tmp/exists" "$seen" "$tmp/turnstat" "$tmp/rows"

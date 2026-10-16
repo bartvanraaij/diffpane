@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
-# Inline diff of one file against HEAD, rendered by delta. Usage: preview <path>
+# Inline diff of one file, rendered by delta. Usage: preview <path> [<turn>]
+# With a turn (Turns view): that turn's own change, between its start and end
+# snapshots (a fresh snapshot while it runs). Without: against HEAD.
 . "$(dirname "$0")/common.sh"
 
 dp_init "$PWD" || exit 0
 path="$1"
 [ -n "$path" ] || exit 0
+turn="$2"
 base=$(dp_base)
+if [ -n "$turn" ]; then
+  IFS=$'\t' read -r _ start end <<EOF
+$(dp_turn_ranges | awk -F'\t' -v t="$turn" '$1 == t')
+EOF
+  [ -n "$start" ] || exit 0
+  if [ -z "$end" ]; then dp_lock; end=$(dp_snapshot); dp_unlock; fi
+fi
 
 {
-  if dp_git cat-file -e "$base:$path" 2>/dev/null; then
+  if [ -n "$turn" ]; then
+    dp_git --no-pager diff --no-renames "$start" "$end" -- "$path"
+  elif dp_git cat-file -e "$base:$path" 2>/dev/null; then
     dp_git --no-pager diff "$base" -- "$path"
   else
     dp_git --no-pager diff --no-index -- /dev/null "$path"

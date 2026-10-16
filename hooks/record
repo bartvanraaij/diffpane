@@ -22,9 +22,17 @@ EOF
   case "$event" in
     UserPromptSubmit)
       echo $(($(dp_turn) + 1)) > "$DP_STATE/turn"
-      dp_snapshot > "$DP_STATE/t0"
+      tree=$(dp_snapshot)
+      echo "$tree" > "$DP_STATE/t0"
+      dp_turn_log "$(dp_turn)" start "$tree"
+      [ -f "$DP_STATE/ended" ] && rm -f "$DP_STATE/ended"
       ;;
     PreToolUse)
+      # Work after Stop in the same turn: reopen it (see dp_turn_ranges).
+      if [ -f "$DP_STATE/ended" ]; then
+        dp_turn_log "$(dp_turn)" resume -
+        rm -f "$DP_STATE/ended"
+      fi
       dp_snapshot > "$DP_STATE/pre/$id"
       ;;
     PostToolUse | PostToolUseFailure)
@@ -41,6 +49,7 @@ EOF
         dp_git diff --name-only --no-renames -z "$(cat "$DP_STATE/t0")" "$tree" | dp_record_new "$(dp_turn)"
       fi
       [ -n "$tree" ] && echo "$tree" > "$DP_STATE/t0"
+      dp_turn_log "$(dp_turn)" end "$tree" && : > "$DP_STATE/ended"
       ;;
   esac
   dp_unlock

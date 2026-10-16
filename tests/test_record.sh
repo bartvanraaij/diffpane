@@ -38,6 +38,32 @@ hook "$r" UserPromptSubmit >/dev/null
 hook "$r" Stop >/dev/null
 assert_eq $'a.txt\nb.txt' "$(touched "$r")" "edit between turns is not attributed"
 
+echo "record: turn snapshots"
+r=$(mkrepo turnlog)
+st=$(state "$r")
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "x\n" >> a.txt'
+hook "$r" Stop >/dev/null
+hook "$r" UserPromptSubmit >/dev/null
+assert_eq $'1\tstart\n1\tend\n2\tstart' "$(cut -f1,2 "$st/turns")" "start on prompt, end on Stop"
+t1s=$(awk -F'\t' '$1 == 1 && $2 == "start" { print $3 }' "$st/turns")
+t1e=$(awk -F'\t' '$1 == 1 && $2 == "end" { print $3 }' "$st/turns")
+assert_eq "a.txt" "$(git -C "$r" diff --name-only "$t1s" "$t1e")" "turn 1 trees differ by its change"
+git -C "$r" add -A && git -C "$r" commit -qm c
+tool "$r" t2 sh -c 'printf "y\n" >> b.txt'
+assert_eq "$(printf '2\tstart\t%s' "$(git -C "$r" rev-parse 'HEAD^{tree}')")" "$(cat "$st/turns")" \
+  "commit mid-turn: log restarts, running turn starts from the new HEAD"
+
+echo "record: a tool call after Stop reopens the turn"
+r=$(mkrepo reopen)
+st=$(state "$r")
+hook "$r" UserPromptSubmit >/dev/null
+hook "$r" Stop >/dev/null
+tool "$r" t1 sh -c 'printf "x\n" >> a.txt'
+tool "$r" t2 sh -c 'printf "x\n" >> b.txt'
+hook "$r" Stop >/dev/null
+assert_eq $'1\tstart\n1\tend\n1\tresume\n1\tend' "$(cut -f1,2 "$st/turns")" "one resume, then the new end"
+
 echo "record: parallel and failed tool calls"
 r=$(mkrepo parallel)
 hook "$r" UserPromptSubmit >/dev/null

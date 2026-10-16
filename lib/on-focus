@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# fzf focus handler. Usage: on-focus <index> <path>  (index = fzf's zero-based {n})
+# fzf focus handler. Usage: on-focus <index> <path> <turn>  (index = fzf's zero-based {n})
 # Skips divider rows (empty path) in the direction of travel; pauses follow when
-# the user moves off the newest row; marks the focused file seen.
+# the user moves off the newest row; marks the focused row (file + turn) seen.
 . "$(dirname "$0")/common.sh"
 
 dp_init "$PWD" || exit 0
-n="$1" path="$2"
+n="$1" path="$2" turn="$3"
 [ -n "$n" ] || exit 0
 last=$(cat "$DP_STATE/view.focus" 2>/dev/null)
 echo "$n" > "$DP_STATE/view.focus"
@@ -21,12 +21,12 @@ if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = on ] && [ "$n" != 0 ]; then
   actions='transform-header($DP_LIB/header)'
 fi
 
-row=$(awk -F'\t' -v p="$path" '$1 == p' "$DP_STATE/view.list" 2>/dev/null)
+row=$(awk -F'\t' -v p="$path" -v t="$turn" '$1 == p && $3 == t' "$DP_STATE/view.list" 2>/dev/null)
 case "$row" in
   *●*)
     total=$(wc -l < "$DP_STATE/touched" 2>/dev/null | tr -d ' ')
-    printf '%s\t%s\n' "${total:-0}" "$path" >> "$DP_STATE/seen"
-    more=$("$DP_LIB/on-change" "$path")
+    printf '%s\t%s\t%s\n' "${total:-0}" "$path" "$turn" >> "$DP_STATE/seen"
+    more=$("$DP_LIB/on-change" "$path" "$turn")
     [ -n "$more" ] && actions="${actions:+$actions+}$more"
     ;;
 esac

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# fzf transform: reload the list if it changed. Usage: on-change <focused-path> [--force]
-# Follow on: jump to newest. Otherwise keep focus on the same file.
+# fzf transform: reload the list if it changed. Usage: on-change <path> <turn> [--force]
+# (the focused row). Follow on: jump to newest. Otherwise keep focus on the same
+# row, else the same file's newest row.
 # Paused follow (from navigating) turns back on once a later turn changes files.
 . "$(dirname "$0")/common.sh"
 
 dp_init "$PWD" || exit 0
-focused="$1"
+focused="$1" fturn="$2" force="$3"
 # Dragging the preview border fires no fzf event; this runs every few seconds
 # from the ticker, so redraw (list dividers, header alignment) on a width change.
 width=$(dp_list_width) header=""
@@ -14,7 +15,7 @@ if [ "$width" != "$(cat "$DP_STATE/view.width" 2>/dev/null)" ]; then
   echo "$width" > "$DP_STATE/view.width"
 fi
 new=$("$DP_LIB/list")
-if [ "$2" != --force ] && [ -z "$header" ] && [ "$new" = "$(cat "$DP_STATE/view.list" 2>/dev/null)" ]; then
+if [ "$force" != --force ] && [ -z "$header" ] && [ "$new" = "$(cat "$DP_STATE/view.list" 2>/dev/null)" ]; then
   exit 0
 fi
 resume=no
@@ -24,7 +25,7 @@ if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = paused ] &&
   resume=yes header='+transform-header($DP_LIB/header)'
 fi
 same_rows=no
-[ "$(printf '%s\n' "$new" | cut -f1)" = "$(cut -f1 "$DP_STATE/view.list" 2>/dev/null)" ] && same_rows=yes
+[ "$(printf '%s\n' "$new" | cut -f1,3)" = "$(cut -f1,3 "$DP_STATE/view.list" 2>/dev/null)" ] && same_rows=yes
 if [ -n "$new" ]; then printf '%s\n' "$new" > "$DP_STATE/view.list"; else : > "$DP_STATE/view.list"; fi
 
 reload='reload-sync(cat "$DP_STATE/view.list")'
@@ -38,5 +39,6 @@ if [ "$(cat "$DP_STATE/follow" 2>/dev/null)" = on ]; then
   echo "$reload+first$header"
   exit 0
 fi
-idx=$(cut -f1 "$DP_STATE/view.list" | grep -nxF -- "$focused" | head -1 | cut -d: -f1)
+idx=$(awk -F'\t' -v p="$focused" -v t="$fturn" '$1 == p && $3 == t { e = NR; exit }
+  $1 == p && !a { a = NR } END { if (p != "") print e ? e : a }' "$DP_STATE/view.list")
 if [ -n "$idx" ]; then echo "$reload+pos($idx)$header"; else echo "$reload+first$header"; fi

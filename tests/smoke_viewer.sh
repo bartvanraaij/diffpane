@@ -65,6 +65,12 @@ assert_eq "a.txt" "$(focused '48;5;236')" "paused follow keeps the selected file
 $T send-keys -t crtest k; sleep 0.5
 assert_eq 'posts.$id.txt' "$(focused '48;5;236')" "divider is skipped going up"
 
+$T send-keys -t crtest v
+wait_for '≡' && assert_eq ok ok "v switches to Files view" || assert_eq ok fail "v switches to Files view"
+assert_eq "1" "$($T capture-pane -p -t crtest | grep -c '────────────────────')" "Files view has no dividers (1: the line under the header)"
+$T send-keys -t crtest v
+wait_for '↩' && assert_eq ok ok "v switches back to Turns view" || assert_eq ok fail "v switches back to Turns view"
+
 git -C "$r" add -A && git -C "$r" commit -qm done
 wait_for "No Claude changes since" && assert_eq ok ok "ticker picks up user commit" || assert_eq ok fail "ticker picks up user commit"
 

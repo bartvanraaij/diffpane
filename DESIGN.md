@@ -74,6 +74,9 @@ own):
 | `touched` | append-only log: `<epoch> <turn> <path>` per change |
 | `pre`     | tree sha from the last PreToolUse                   |
 | `t0`      | tree sha from turn start                            |
+| `turns`   | append-only log: `<turn> start|end <tree>`          |
+| `turnstat/<turn>` | cached numstat of a finished turn           |
+| `view`    | `turns` or `files` (viewer, see Views)              |
 
 Reset rule: whenever any script runs and `HEAD` differs from `head`, wipe
 `touched`, reset `turn` to 0 and store the new sha. Covers commit, amend,
@@ -88,10 +91,11 @@ A Claude Code plugin repo: `hooks/`, `bin/`, `lib/`, `themes/`, `tests/`.
    architecture diagram. Pings the viewer after recording. Must never block or
    fail Claude: exits 0 always, swallows errors, guards with a timeout.
    No-op outside a git work tree.
-2. **`lib/list`** — prints the viewer rows. Applies the reset rule. Dedups
-   `touched` by path keeping the newest entry, sorts newest first, and drops
-   paths whose diff vs HEAD is now empty (reverted). Turns are separated by
-   divider rows (empty path, skipped when navigating). File rows:
+2. **`lib/list`** — prints the viewer rows for the current view (see Views).
+   Applies the reset rule. Turns view: one row per file per turn, turns
+   separated by divider rows (empty path, skipped when navigating). Files
+   view: `touched` deduped by path keeping the newest entry. Both sort newest
+   first and drop rows whose diff is now empty (reverted). File rows:
    `<M|A|D> +<add> −<del>  <name>[ ●]  <dir>`, stat columns right-aligned.
    Untracked new files are diffed against `/dev/null`.
 3. **`bin/diffpane`** — the viewer. Runs fzf with:
@@ -102,7 +106,7 @@ A Claude Code plugin repo: `hooks/`, `bin/`, `lib/`, `themes/`, `tests/`.
      different repos don't cross
    - periodic reload fallback (a few seconds) to catch commits made outside
      Claude
-   - header: `<repo>  ●|⏸|○` (follow on, paused, off) / `<t> turns  <n> files changed`,
+   - header: `<repo>  ↩|≡ ●|⏸|○` (view Turns, Files; follow on, paused, off) / `<t> turns  <n> files changed`,
      counts right-aligned; diff pane has no file header (the list shows it)
    - tmux pane title `Diffpane`
    - empty state: `No Claude changes since`, short sha, relative time, full
@@ -130,6 +134,42 @@ A Claude Code plugin repo: `hooks/`, `bin/`, `lib/`, `themes/`, `tests/`.
   fzf can't recolor live, so the ticker restarts fzf within ~3s of a switch,
   keeping the selected file when follow is off.
 
+### Views: Turns and Files
+
+Two lists over the same `touched` log. `v` switches; Turns is the default at
+startup. The view is kept across the fzf restart on a theme switch.
+
+- **Turns** — one row per file per turn, under plain turn dividers, newest
+  turn first. A file changed in 10 turns has 10 rows. A row's diff and stats
+  are that turn's change only: turn start tree → turn end tree, or → working
+  tree for the turn still running. User edits made between turns fall
+  outside every turn and don't show.
+- **Files** — one row per file, newest change first, no dividers. Diff and
+  stats against HEAD (the original list, without the dividers).
+
+Per-turn snapshots: `record` appends `<turn> start <tree>` on
+`UserPromptSubmit` and `<turn> end <tree>` on `Stop` to `turns`. Both trees are
+already computed there, so the hook does no extra git work. A turn's last
+`end` wins (Stop can fire more than once).
+
+Rules:
+- Turns without a `start` tree (recorded before this feature, or pruned by
+  `git gc` after two weeks without a commit) are left out of Turns view;
+  Files view still shows their files.
+- A row whose turn diff is empty (changed and changed back within the turn)
+  is left out.
+- Stats per turn need one `git diff --numstat` per turn. A finished turn's
+  trees never change, so its numstat is cached in `turnstat/<turn>`; only the
+  running turn is computed on each reload.
+- Rows carry the turn in a hidden third field (`<path>\t<display>\t<turn>`,
+  empty in Files view); preview, refocus and `seen` key on path + turn.
+- Unseen `●` is per row: each turn's change of a file is marked until that
+  row is selected.
+- Follow selects the first row in both views.
+- Header line 1 shows the view as a symbol left of the follow state:
+  `↩` Turns, `≡` Files (`<repo>  ↩ ●`). Line 2 stays
+  `<t> turns  <n> files changed`; in Turns view `<t>` counts the turns shown.
+
 ### Keys
 
 | Key              | Action                                            |
@@ -139,6 +179,7 @@ A Claude Code plugin repo: `hooks/`, `bin/`, `lib/`, `themes/`, `tests/`.
 | `enter`          | open file in `$EDITOR` in a new tmux window       |
 | `f`              | toggle follow                                     |
 | `w`              | toggle word wrap in the diff                      |
+| `v`              | switch view: Turns / Files                        |
 | `r`              | manual reload                                     |
 | `q`              | quit                                              |
 
@@ -174,6 +215,5 @@ No search. fzf runs with the query input disabled so `j/k` navigate.
 ## Out of scope (for now)
 
 - Bare repo support (dotfiles setups).
-- Per-turn diffs (design keeps snapshot shas, so possible later).
 - Hunk revert/stage from the viewer.
 - Side-by-side diff.

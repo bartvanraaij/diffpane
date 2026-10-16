@@ -12,23 +12,23 @@ tool "$r" t2 sh -c 'printf "x\n" >> b.txt'
 
 echo "on-change"
 echo on > "$st/follow"
-assert_eq "$RELOAD+first" "$(run on-change b.txt)" "first change with follow on jumps to top"
-assert_eq "" "$(run on-change b.txt)" "unchanged list prints nothing"
-assert_eq "$RELOAD" "$(run on-change b.txt --force)" "--force reloads anyway; same rows: cursor stays"
+assert_eq "$RELOAD+first" "$(run on-change b.txt 1)" "first change with follow on jumps to top"
+assert_eq "" "$(run on-change b.txt 1)" "unchanged list prints nothing"
+assert_eq "$RELOAD" "$(run on-change b.txt 1 --force)" "--force reloads anyway; same rows: cursor stays"
 echo off > "$st/follow"
 tool "$r" t3 sh -c 'printf "x\n" >> c.txt'
-assert_eq "$RELOAD+pos(3)" "$(run on-change a.txt)" "follow off keeps focus on a.txt (now row 3)"
+assert_eq "$RELOAD+pos(3)" "$(run on-change a.txt 1)" "follow off keeps focus on a.txt (now row 3)"
 tool "$r" t4 git checkout -- a.txt
-assert_eq "$RELOAD+first" "$(run on-change a.txt)" "focused file gone falls back to first"
+assert_eq "$RELOAD+first" "$(run on-change a.txt 1)" "focused file gone falls back to first"
 
 echo "on-focus"
 echo on > "$st/follow"
-run on-change c.txt --force >/dev/null
-out=$(run on-focus 0 c.txt)
+run on-change c.txt 1 --force >/dev/null
+out=$(run on-focus 0 c.txt 1)
 assert_eq "on" "$(cat "$st/follow")" "focus on top row keeps follow on"
 assert_eq "$RELOAD" "$out" "focusing unseen top row marks it seen, reloads without moving"
-assert_eq "" "$(run on-focus 0 c.txt)" "already seen row: no actions"
-out=$(run on-focus 1 b.txt)
+assert_eq "" "$(run on-focus 0 c.txt 1)" "already seen row: no actions"
+out=$(run on-focus 1 b.txt 1)
 assert_eq "paused" "$(cat "$st/follow")" "moving off top row pauses follow"
 assert_eq "$HEADER+$RELOAD" "$out" "pause updates header, marks b.txt seen without moving"
 assert_eq "" "$(run on-focus '' '')" "empty list: no actions"
@@ -36,17 +36,17 @@ assert_eq "" "$(run on-focus '' '')" "empty list: no actions"
 echo "on-focus: dividers between turns are skipped in the direction of travel"
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t5 sh -c 'printf "x\n" >> d.txt'
-run on-change d.txt --force >/dev/null   # rows: d.txt, divider, c.txt, b.txt
-run on-focus 0 d.txt >/dev/null
+run on-change d.txt 1 --force >/dev/null   # rows: d.txt, divider, c.txt, b.txt
+run on-focus 0 d.txt 1 >/dev/null
 assert_eq "down" "$(run on-focus 1 '')" "moving down onto a divider: down"
-run on-focus 2 c.txt >/dev/null
+run on-focus 2 c.txt 1 >/dev/null
 assert_eq "up" "$(run on-focus 1 '')" "moving up onto a divider: up"
 
 echo "on-change: list width change redraws list and header"
-FZF_PREVIEW_LEFT=33 run on-change d.txt >/dev/null   # settle on a width
-assert_eq "" "$(FZF_PREVIEW_LEFT=33 run on-change d.txt)" "same width, nothing changed"
-assert_eq "$RELOAD+$HEADER" "$(FZF_PREVIEW_LEFT=43 run on-change d.txt)" "width changed: reload and redraw header"
-assert_eq "" "$(FZF_PREVIEW_LEFT=43 run on-change d.txt)" "same width again: nothing"
+FZF_PREVIEW_LEFT=33 run on-change d.txt 1 >/dev/null   # settle on a width
+assert_eq "" "$(FZF_PREVIEW_LEFT=33 run on-change d.txt 1)" "same width, nothing changed"
+assert_eq "$RELOAD+$HEADER" "$(FZF_PREVIEW_LEFT=43 run on-change d.txt 1)" "width changed: reload and redraw header"
+assert_eq "" "$(FZF_PREVIEW_LEFT=43 run on-change d.txt 1)" "same width again: nothing"
 
 echo "toggle-follow"
 assert_eq "first+$HEADER" "$(run toggle-follow)" "paused -> on jumps to newest"
@@ -61,21 +61,48 @@ st=$(state "$r")
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t1 sh -c 'printf "x\n" >> a.txt && printf "x\n" >> b.txt'
 echo on > "$st/follow"
-run on-change b.txt --force >/dev/null
-run on-focus 1 a.txt >/dev/null
+run on-change b.txt 1 --force >/dev/null
+run on-focus 1 a.txt 1 >/dev/null
 assert_eq "paused" "$(cat "$st/follow")" "navigation paused follow"
 tool "$r" t2 sh -c 'printf "x\n" >> c.txt'
-assert_eq "$RELOAD+pos(3)" "$(run on-change a.txt)" "more changes in the same turn: stay paused, keep focus"
+assert_eq "$RELOAD+pos(3)" "$(run on-change a.txt 1)" "more changes in the same turn: stay paused, keep focus"
 assert_eq "paused" "$(cat "$st/follow")" "still paused"
 hook "$r" UserPromptSubmit >/dev/null
-assert_eq "" "$(run on-change a.txt)" "new turn without changes: nothing"
+assert_eq "" "$(run on-change a.txt 1)" "new turn without changes: nothing"
 tool "$r" t3 sh -c 'printf "x\n" >> d.txt'
-assert_eq "$RELOAD+first+$HEADER" "$(run on-change a.txt)" "new turn with changes: follow back on, jump to newest"
+assert_eq "$RELOAD+first+$HEADER" "$(run on-change a.txt 1)" "new turn with changes: follow back on, jump to newest"
 assert_eq "on" "$(cat "$st/follow")" "follow on again"
 echo off > "$st/follow"
 hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t4 sh -c 'printf "x\n" >> e.txt'
-assert_eq "off" "$(run on-change a.txt >/dev/null; cat "$st/follow")" "follow switched off with f stays off"
+assert_eq "off" "$(run on-change a.txt 1 >/dev/null; cat "$st/follow")" "follow switched off with f stays off"
+
+echo "on-focus: seen is per turn"
+r=$(mkrepo seen)
+st=$(state "$r")
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "x\n" >> a.txt'
+hook "$r" Stop >/dev/null
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t2 sh -c 'printf "y\n" >> a.txt'
+run on-change a.txt 2 --force >/dev/null
+run on-focus 0 a.txt 2 >/dev/null
+assert_eq "1" "$(grep -c '●' "$st/view.list")" "focusing turn 2's a.txt leaves turn 1's a.txt unseen"
+
+echo "on-change: focus stays on the same file and turn"
+echo off > "$st/follow"
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t3 sh -c 'printf "z\n" >> b.txt'
+assert_eq "$RELOAD+pos(5)" "$(run on-change a.txt 1)" "turn 1's a.txt is row 5 now"
+
+echo "toggle-view"
+echo turns > "$st/view"
+out=$(run toggle-view a.txt 1)
+assert_eq "files" "$(cat "$st/view")" "turns -> files"
+assert_eq "$RELOAD+pos(2)+$HEADER+refresh-preview" "$out" "reloads, keeps the file, redraws header and preview"
+out=$(run toggle-view a.txt '')
+assert_eq "turns" "$(cat "$st/view")" "files -> turns"
+assert_eq "$RELOAD+pos(3)+$HEADER+refresh-preview" "$out" "the file's newest turn row"
 
 echo "toggle-wrap"
 rm -f "$st/wrap"

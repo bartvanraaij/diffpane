@@ -48,10 +48,16 @@ dp_unlock() { rmdir "$DP_STATE/lock" 2>/dev/null; }
 # Uses the HEAD that dp_init resolved. Snapshots (pre/*, t0) are tree shas that
 # don't depend on HEAD, so in-flight tool calls keep them; only orphans (a Pre
 # whose Post never came, e.g. a denied permission prompt) are pruned.
+# The turn log restarts too; a turn already running continues from the new
+# HEAD, so its later changes don't include what was just committed.
 dp_sync_head() {
-  local head="$DP_HEAD"
+  local head="$DP_HEAD" turn
   [ "$(cat "$DP_STATE/head" 2>/dev/null)" = "$head" ] && return 0
-  rm -f "$DP_STATE/touched" "$DP_STATE/seen"
+  rm -f "$DP_STATE/touched" "$DP_STATE/seen" "$DP_STATE/turns" "$DP_STATE/ended"
+  rm -rf "$DP_STATE/turnstat"
+  turn=$(dp_turn)
+  [ "$turn" -gt 0 ] 2>/dev/null &&
+    dp_turn_log "$turn" start "$(dp_git rev-parse -q --verify "$(dp_base)^{tree}")"
   find "$DP_STATE/pre" -type f -mmin +60 -delete 2>/dev/null
   # Seed the private index from the real one so the first snapshot reuses its stat cache.
   [ -f "$DP_REAL_INDEX" ] && cp "$DP_REAL_INDEX" "$DP_STATE/index"
@@ -65,6 +71,31 @@ dp_snapshot() {
 }
 
 dp_turn() { cat "$DP_STATE/turn" 2>/dev/null || echo 0; }
+
+# dp_turn_log <turn> start|end|resume <tree>: append to the turn log (no-op without a tree).
+dp_turn_log() {
+  [ -n "$3" ] && printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "$DP_STATE/turns"
+}
+
+# Print "<turn>\t<start tree>\t<end tree>" for each turn with a start snapshot.
+# End is the turn's own Stop snapshot, else the next turn's start (an
+# interrupted turn fires no Stop), else empty: the turn is still running.
+# A tool call after Stop (a Stop hook can send Claude back to work) logs
+# "resume", which clears the end until the next Stop.
+dp_turn_ranges() {
+  [ -s "$DP_STATE/turns" ] || return 0
+  awk -F'\t' '
+    $2 == "start" { if (!($1 in start)) order[++n] = $1; start[$1] = $3; stop[$1] = "" }
+    $2 == "end" && ($1 in start) { stop[$1] = $3 }
+    $2 == "resume" && ($1 in start) { stop[$1] = "" }
+    END {
+      for (i = 1; i <= n; i++) {
+        t = order[i]; e = stop[t]
+        if (e == "" && i < n) e = start[order[i + 1]]
+        printf "%s\t%s\t%s\n", t, start[t], e
+      }
+    }' "$DP_STATE/turns"
+}
 
 # Append NUL-separated paths from stdin to the touched log for turn $1.
 dp_record() {
@@ -90,13 +121,13 @@ dp_sock() {
   echo "/tmp/diffpane-$UID/$(printf '%s' "$DP_STATE" | cksum | cut -d' ' -f1).sock"
 }
 
-# Ask a running viewer to refresh. Never blocks. $DP_LIB and {1} expand inside fzf.
+# Ask a running viewer to refresh. Never blocks. $DP_LIB, {1} and {3} expand inside fzf.
 dp_ping() {
   local sock
   sock=$(dp_sock)
   [ -S "$sock" ] || return 0
   ( curl -s --max-time 1 --unix-socket "$sock" http://localhost \
-      -d 'transform($DP_LIB/on-change {1})' >/dev/null 2>&1 & )
+      -d 'transform($DP_LIB/on-change {1} {3})' >/dev/null 2>&1 & )
 }
 
 # light|dark for the diff and list colors. delta and fzf can't detect the

@@ -63,6 +63,19 @@ assert_eq "yes" "$([ "$rows" -gt 1 ] && echo yes)" "preview wraps when wrap is o
 rm -f "$(state "$r")/wrap"
 assert_eq "1" "$(cd "$r" && FZF_PREVIEW_COLUMNS=30 "$DP_HOME/lib/preview" long.txt | wc -l | tr -d ' ')" "and not when off"
 
+echo "preview: a turn's own change"
+r=$(mkrepo turnprev)
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t1 sh -c 'printf "first-turn\n" >> a.txt'
+hook "$r" Stop >/dev/null
+hook "$r" UserPromptSubmit >/dev/null
+tool "$r" t2 sh -c 'printf "second-turn\n" >> a.txt'
+p() { (cd "$r" && "$DP_HOME/lib/preview" a.txt "$1") | strip | grep -o '[a-z]*-turn' | tr '\n' ' '; }
+assert_eq "first-turn " "$(p 1)" "turn 1 shows only its line"
+assert_eq "first-turn second-turn " "$(p 2)" "running turn: its line, with turn 1's as context"
+assert_eq "yes" "$((cd "$r" && "$DP_HOME/lib/preview" a.txt 2) | strip | grep -q '^.*│second-turn' && (cd "$r" && "$DP_HOME/lib/preview" a.txt 2) | grep 'first-turn' | grep -qv '48;2' && echo yes)" "turn 1's line is context, not added"
+assert_eq "first-turn second-turn " "$(p '')" "no turn: everything since HEAD"
+
 echo "header"
 r=$(mkrepo head)
 st=$(state "$r"); mkdir -p "$st"
@@ -70,7 +83,7 @@ st=$(state "$r"); mkdir -p "$st"
 sha=$(git -C "$r" rev-parse --short HEAD)
 hdr() { (cd "$r" && FZF_COLUMNS=100 "$DP_HOME/lib/header") | strip; }  # list column: 30 wide
 out=$(hdr)
-assert_eq "head$(printf '%24s' '')○" "$(echo "$out" | sed -n 1p)" "empty state: repo and follow icon"
+assert_eq "head$(printf '%22s' '')↩ ○" "$(echo "$out" | sed -n 1p)" "empty state: repo, view and follow icons"
 assert_eq "" "$(echo "$out" | sed -n 2p)" "empty state: no counts line, a spacer"
 assert_eq "No Claude changes since" "$(echo "$out" | sed -n 3p)" "empty state: plain text"
 assert_eq "yes" "$(echo "$out" | sed -n 4p | grep -q "^$sha · .* ago$" && echo yes)" "empty state: sha and relative time"
@@ -82,15 +95,24 @@ assert_eq "A rather long subject line
 that needs wrapping to fit" "$(echo "$out" | sed -n 5,6p)" "long subject wraps at word boundaries"
 assert_eq "yes" "$(echo "$out" | grep -q 'Body explains why' && echo yes)" "body shown"
 assert_eq "0" "$(echo "$out" | grep -c 'Co-Authored-By')" "trailers left out"
-assert_eq "0" "$(echo "$out" | sed 's/[○●⏸·]/x/g' | awk 'length > 29' | wc -l | tr -d ' ')" "nothing wider than the list column"
+assert_eq "0" "$(echo "$out" | sed 's/[○●⏸·↩≡]/x/g' | awk 'length > 29' | wc -l | tr -d ' ')" "nothing wider than the list column"
 printf 'a.txt\tx\n' > "$st/view.list"
 echo on > "$st/follow"
-assert_eq "head                        ●
-1 turn         1 file changed" "$(hdr)" "singular, follow on"
+assert_eq "head                      ↩ ●
+1 turn         1 file changed" "$(hdr)" "singular, Turns view, follow on"
 printf 'a.txt\tx\n\t────\nb.txt\ty\n' > "$st/view.list"
 echo paused > "$st/follow"
-assert_eq "head                        ⏸
+assert_eq "head                      ↩ ⏸
 2 turns       2 files changed" "$(hdr)" "divider rows are not files, turns = dividers + 1"
+printf 'a.txt\tx\t2\n\t────\t\na.txt\ty\t1\n' > "$st/view.list"
+assert_eq "2 turns        1 file changed" "$(hdr | sed -n 2p)" "Turns view: a file in two turns counts once"
+echo files > "$st/view"
+printf '1\ta.txt\n2\ta.txt\n2\tb.txt\n3\tgone.txt\n' > "$st/touched"
+printf 'a.txt\tx\t\nb.txt\ty\t\n' > "$st/view.list"
+assert_eq "head                      ≡ ⏸
+2 turns       2 files changed" "$(hdr)" "Files view: ≡, turns that changed a listed file"
+rm "$st/view" "$st/touched"
+printf 'a.txt\tx\n\t────\nb.txt\ty\n' > "$st/view.list"
 assert_eq "2 turns                  2 files changed" "$( (cd "$r" && FZF_COLUMNS=100 FZF_PREVIEW_LEFT=43 "$DP_HOME/lib/header") | strip | sed -n 2p)" "preview dragged: right-aligned to the real list width"
 
 finish

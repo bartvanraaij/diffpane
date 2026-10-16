@@ -60,6 +60,13 @@ D      −1  c.txt ●           │
 Run `diffpane` in a pane inside the repo Claude works in. It shows everything
 Claude changed since the last commit, even if it was started late.
 
+Two views, switched with `v`:
+
+- **Turns** `↩` (default): each turn's changes under a divider, newest first.
+  A file changed in three turns is listed three times, each with only that
+  turn's change.
+- **Files** `≡`: each file once, with its whole diff since the last commit.
+
 | Key                | Action                                       |
 |--------------------|----------------------------------------------|
 | `j` / `k`, click   | select file                                  |
@@ -67,6 +74,7 @@ Claude changed since the last commit, even if it was started late.
 | `enter`            | open the file in `$EDITOR` (new tmux window) |
 | `f`                | follow on/off                                |
 | `w`                | wrap long lines in the diff on/off           |
+| `v`                | switch view: Turns / Files                   |
 | `r`                | reload                                       |
 | `q`                | quit                                         |
 

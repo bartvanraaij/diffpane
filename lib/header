@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
-# Viewer header: repo and changed-file count, turn count and follow state; empty-state hint.
+# Viewer header: repo, view and follow state; turn and changed-file count; empty-state hint.
 # Counts are right-aligned to the list column.
 . "$(dirname "$0")/common.sh"
 
 dp_init "$PWD" || exit 0
 B=$'\033[1m' D=$'\033[2m' G=$'\033[32m' Y=$'\033[33m' N=$'\033[0m'
-# view.list: file rows have a path, the dividers between turns don't.
-set -- $(awk -F'\t' '$1 != "" { f++ } $1 == "" { d++ } END { print f + 0, f ? d + 1 : 0 }' "$DP_STATE/view.list" 2>/dev/null)
+# view.list: file rows have a path, the dividers between turns don't. Turns
+# view lists a file once per turn; Files view has no dividers, so its turns are
+# counted from the log: those that changed a listed file.
+if [ "$(cat "$DP_STATE/view" 2>/dev/null)" = files ]; then
+  view="≡"
+  set -- $(awk -F'\t' 'FILENAME == ARGV[1] { if ($1 != "") listed[$1] = 1; next }
+    $2 in listed && !($1 in t) { t[$1] = 1; d++ } END { print length(listed), d + 0 }' \
+    "$DP_STATE/view.list" "$DP_STATE/touched" 2>/dev/null)
+else
+  view="↩"
+  set -- $(awk -F'\t' '$1 != "" && !($1 in f) { f[$1] = 1; n++ } $1 == "" { d++ }
+    END { print n + 0, n ? d + 1 : 0 }' "$DP_STATE/view.list" 2>/dev/null)
+fi
 n=${1:-0} turns=${2:-0}
 [ "$n" -eq 1 ] && files="1 file changed" || files="$n files changed"
 [ "$turns" -eq 1 ] && turns="1 turn" || turns="$turns turns"
@@ -24,7 +35,7 @@ line() {  # <left> <left width> <right> <right width>
   printf '%s%*s%s\n' "$1" "$gap" '' "$3"
 }
 repo=$(basename "$DP_ROOT")
-line "$B$repo$N" "${#repo}" "$follow" 1
+line "$B$repo$N" "${#repo}" "${D}${view}${N} $follow" 3
 if [ "$n" -gt 0 ]; then
   line "$D$turns$N" "${#turns}" "$D$files$N" "${#files}"
   exit 0

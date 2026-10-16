@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# fzf 'v' key: switch view, Turns <-> Files. Usage: toggle-view <path> <turn>
+# (the focused row, so the same file stays selected).
+. "$(dirname "$0")/common.sh"
+
+dp_init "$PWD" || exit 0
+if [ "$(cat "$DP_STATE/view" 2>/dev/null)" = files ]; then
+  echo turns > "$DP_STATE/view"
+else
+  echo files > "$DP_STATE/view"
+fi
+echo "$("$DP_LIB/on-change" "$1" "$2" --force)+transform-header(\$DP_LIB/header)+refresh-preview"

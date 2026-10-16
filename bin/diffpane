@@ -30,6 +30,7 @@ fi
 
 echo on > "$DP_STATE/follow"
 echo off > "$DP_STATE/wrap"
+echo turns > "$DP_STATE/view"
 rows=$("$DP_LIB/list")
 if [ -n "$rows" ]; then printf '%s\n' "$rows" > "$DP_STATE/view.list"; else : > "$DP_STATE/view.list"; fi
 
@@ -40,9 +41,9 @@ restart="$DP_STATE/view.restart"
 (
   theme=$(dp_theme)
   while sleep 3 && kill -0 $$ 2>/dev/null; do
-    action='transform($DP_LIB/on-change {1})'
+    action='transform($DP_LIB/on-change {1} {3})'
     now=$(dp_theme)
-    [ "$now" = "$theme" ] || { theme=$now; action='execute-silent(printf %s {1} > "$DP_STATE/view.restart")+abort'; }
+    [ "$now" = "$theme" ] || { theme=$now; action='execute-silent(printf "%s\t%s" {1} {3} > "$DP_STATE/view.restart")+abort'; }
     curl -s --max-time 1 --unix-socket "$sock" http://localhost -d "$action" >/dev/null 2>&1
   done
 ) &
@@ -61,10 +62,11 @@ fi
 
 rm -f "$restart"
 while :; do
-  # After a theme restart, keep the file the user was on (follow picks its own).
+  # After a theme restart, keep the row the user was on (follow picks its own).
   refocus="load:ignore"
   if [ -f "$restart" ] && [ "$(cat "$DP_STATE/follow")" != on ]; then
-    idx=$(awk -F'\t' -v p="$(cat "$restart")" '$1 == p { print NR; exit }' "$DP_STATE/view.list")
+    idx=$(awk -F'\t' 'NR == FNR { p = $1; t = $2; next } $1 == p && $3 == t { print FNR; exit }' \
+      "$restart" "$DP_STATE/view.list")
     [ -n "$idx" ] && refocus="load:pos($idx)+unbind(load)"  # once, after input is read
   fi
   rm -f "$restart"
@@ -77,18 +79,19 @@ while :; do
     --ansi --no-input --no-sort --layout=reverse --info=hidden --color="$colors" \
     --header-border=bottom --pointer='' --marker='' --gutter=' ' \
     --delimiter='\t' --with-nth=2 \
-    --preview '$DP_LIB/preview {1}' \
+    --preview '$DP_LIB/preview {1} {3}' \
     --preview-window 'right,70%,border-left' \
     --bind 'start:transform-header($DP_LIB/header)' \
     --bind "$refocus" \
     --bind 'result:transform-header($DP_LIB/header)' \
-    --bind 'resize:transform-header($DP_LIB/header)+transform($DP_LIB/on-change {1} --force)' \
-    --bind 'focus:transform($DP_LIB/on-focus {n} {1})' \
+    --bind 'resize:transform-header($DP_LIB/header)+transform($DP_LIB/on-change {1} {3} --force)' \
+    --bind 'focus:transform($DP_LIB/on-focus {n} {1} {3})' \
     --bind 'j:down,k:up' \
     --bind 'ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
     --bind 'f:transform($DP_LIB/toggle-follow)' \
     --bind 'w:transform($DP_LIB/toggle-wrap)' \
-    --bind 'r:transform($DP_LIB/on-change {1} --force)' \
+    --bind 'v:transform($DP_LIB/toggle-view {1} {3})' \
+    --bind 'r:transform($DP_LIB/on-change {1} {3} --force)' \
     --bind "enter:$open" \
     --bind 'q:abort'
   [ -f "$restart" ] || break

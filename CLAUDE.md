@@ -6,9 +6,9 @@ Claude Code plugin + fzf/delta viewer. Read `DESIGN.md` for how it works and
 ## Layout
 
 - `hooks/record` — hook entry point (all five events, see `hooks/hooks.json`)
-- `bin/diffpane` — viewer; dispatches `toggle` / `layout` to `lib/`
+- `bin/diffpane` — viewer. It doesn't place itself; tmux bindings live in the README
 - `lib/common.sh` — shared helpers, prefix `dp_` / `DP_`
-- `lib/*` — fzf actions (`list`, `preview`, `header`, `on-change`, `on-focus`, `toggle-follow`, `toggle-wrap`, `toggle-view`), `wrap` (perl: wraps the diff past the line-number gutter) and tmux helpers
+- `lib/*` — fzf actions (`list`, `preview`, `header`, `on-change`, `on-focus`, `toggle-follow`, `toggle-wrap`, `toggle-view`) and `wrap` (perl: wraps the diff past the line-number gutter)
 - `.claude-plugin/` — plugin manifest and marketplace entry
 
 ## Constraints

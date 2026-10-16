@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # diffpane: live list + inline diff of files Claude changed since HEAD.
-#   diffpane                 the viewer (run it in a pane next to Claude Code)
-#   diffpane toggle [pane]   tmux: open/close the viewer left of a pane
-#   diffpane layout [dir]    tmux: new window, viewer left, `claude` right
-# See DESIGN.md.
+# Run it in a pane or window next to Claude Code; where is up to you (README
+# has tmux bindings). See DESIGN.md.
 
 # Follow symlinks (installed as a link on PATH) to find lib/.
 self=$0
@@ -13,8 +11,7 @@ while [ -L "$self" ]; do
 done
 lib="$(cd "$(dirname "$self")/../lib" && pwd)"
 case "$1" in
-  toggle | layout) cmd=$1; shift; exec "$lib/$cmd" "$@" ;;
-  -h | --help) sed -n '2,5s/^# \{0,1\}//p' "$self"; exit 0 ;;
+  -h | --help) sed -n '2,3s/^# \{0,1\}//p' "$self"; exit 0 ;;
 esac
 . "$lib/common.sh"
 
@@ -50,15 +47,9 @@ restart="$DP_STATE/view.restart"
 ticker=$!
 trap 'kill $ticker 2>/dev/null' EXIT
 
-if [ -n "$TMUX" ]; then
-  # Editor and file as separate args: tmux runs them without a shell, so a
-  # name like posts.$id.tsx is not expanded.
-  open='execute-silent(tmux new-window -c "$DP_ROOT" ${EDITOR:-nvim} {1})'
-else
-  open='execute(${EDITOR:-nvim} {1})'
-fi
-
-[ -n "$TMUX" ] && tmux select-pane -t "$TMUX_PANE" -T "Diffpane"
+# Terminal title (OSC 2): tmux takes it as the pane title, which the README's
+# toggle binding looks for; other terminals show it on the tab or window.
+printf '\033]2;Diffpane\033\\'
 
 rm -f "$restart"
 while :; do
@@ -92,7 +83,7 @@ while :; do
     --bind 'w:transform($DP_LIB/toggle-wrap)' \
     --bind 'v:transform($DP_LIB/toggle-view {1} {3})' \
     --bind 'r:transform($DP_LIB/on-change {1} {3} --force)' \
-    --bind "enter:$open" \
+    --bind 'enter:ignore,double-click:ignore' \
     --bind 'q:abort'
   [ -f "$restart" ] || break
 done

@@ -32,7 +32,7 @@ D      −1  c.txt ●           │
 - macOS or Linux with `bash`, `git`, `jq`, `curl`
 - [fzf](https://github.com/junegunn/fzf) (tested with 0.74)
 - [delta](https://github.com/dandavison/delta) (tested with 0.20)
-- tmux (optional, for the layout/toggle helpers)
+- tmux (optional; see the bindings below)
 - Claude Code with plugin support
 
 ## Install
@@ -71,7 +71,6 @@ Two views, switched with `v`:
 |--------------------|----------------------------------------------|
 | `j` / `k`, click   | select file                                  |
 | `ctrl-d` / `ctrl-u`, wheel | scroll the diff                      |
-| `enter`            | open the file in `$EDITOR` (new tmux window) |
 | `f`                | follow on/off                                |
 | `w`                | wrap long lines in the diff on/off           |
 | `v`                | switch view: Turns / Files                   |
@@ -83,11 +82,18 @@ few seconds.
 
 ### tmux
 
+diffpane doesn't place itself; put it wherever you like. With tmux, these
+bindings in `tmux.conf` open it next to Claude. The toggle finds the viewer by
+its pane title, `Diffpane`.
+
 ```tmux
-# new window: diffpane left (67%), claude right (33%)
-bind C run-shell -b '~/.local/bin/diffpane layout "#{pane_current_path}"'
-# open/close diffpane left of the current pane
-bind g run-shell -b '~/.local/bin/diffpane toggle "#{pane_id}"'
+# prefix g: open/close diffpane left of the current pane
+bind g run-shell 'p=$(tmux list-panes -t "#{pane_id}" -F "##{pane_id} ##{pane_title}" | awk "\$2 == \"Diffpane\" { print \$1; exit }"); \
+  if [ -n "$p" ]; then tmux kill-pane -t "$p"; \
+  else tmux split-window -hbd -l 67% -t "#{pane_id}" -c "#{pane_current_path}" "~/.local/bin/diffpane || sleep 3"; fi'
+# prefix C: new window, diffpane left, claude right
+bind C new-window -c "#{pane_current_path}" -n "#{b:pane_current_path}" "~/.local/bin/diffpane || sleep 3" \; \
+  split-window -h -l 33% -c "#{pane_current_path}" claude
 ```
 
 ## Configuration
@@ -136,7 +142,7 @@ Large untracked files that aren't gitignored are hashed on every snapshot.
 ```sh
 tests/run.sh            # unit tests
 tests/smoke_viewer.sh   # viewer in a private tmux server
-tests/smoke_tmux.sh     # layout/toggle helpers
+tests/smoke_tmux.sh     # the README's tmux bindings
 tests/bench.sh          # hook latency
 ```
 

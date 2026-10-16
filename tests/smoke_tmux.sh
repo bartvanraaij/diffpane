@@ -1,30 +1,60 @@
 #!/usr/bin/env bash
-# Smoke test: toggle and layout against a private tmux server, never the default one.
+# Smoke test: the README's tmux bindings (toggle, layout), on private servers.
+# Bindings only fire through an attached client, so an outer server's pane runs
+# a client of the inner server; keys sent to that pane reach the bindings.
 . "$(dirname "$0")/helpers.sh"
-T="tmux -L crtest -f /dev/null"
-trap '$T kill-server 2>/dev/null; rm -rf "$TMPROOT"' EXIT
+O="tmux -L crtest-outer -f /dev/null"
+I="tmux -L crtest-inner -f /dev/null"
+trap '$O kill-server 2>/dev/null; $I kill-server 2>/dev/null; rm -rf "$TMPROOT"' EXIT
+
+wait_panes() { # <target> <count>: poll up to 5s for the pane count
+  local i
+  for i in $(seq 50); do
+    [ "$($I list-panes -t "$1" 2>/dev/null | wc -l | tr -d ' ')" = "$2" ] && return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+left_title() { # <target>: title of the leftmost pane, once the viewer has set it (up to 5s)
+  local i t
+  for i in $(seq 50); do
+    t=$($I list-panes -t "$1" -F '#{pane_left} #{pane_title}' | sort -n | head -1 | cut -d' ' -f2)
+    [ "$t" = Diffpane ] && break
+    sleep 0.1
+  done
+  echo "$t"
+}
+
+# The README's ```tmux block, pointed at this checkout; `cat` stands in for claude.
+awk '/^```tmux$/ { on = 1; next } on && /^```$/ { exit } on' "$DP_HOME/README.md" |
+  sed -e "s|~/.local/bin/diffpane|$DP_HOME/bin/diffpane|g" -e 's/ claude$/ cat/' > "$TMPROOT/bindings.conf"
 
 r=$(mkrepo tmux)
-$T new-session -d -s crtest -x 200 -y 50 -c "$r"
-p=$($T display -p -t crtest '#{pane_id}')
-# toggle/layout call plain `tmux`; point it at the private server.
-export TMUX="$($T display -p '#{socket_path}'),0,0"
+$I new-session -d -s s -x 200 -y 50 -c "$r"
+$I source-file "$TMPROOT/bindings.conf"
+p=$($I display -p -t s '#{pane_id}')
+$O new-session -d -s o -x 200 -y 52 "TMUX= $I attach -t s"
+sleep 0.5
 
-"$DP_HOME/bin/diffpane" toggle "$p"
-panes=$($T list-panes -t crtest -F '#{@diffpane}' | sort | tr '\n' ' ')
-assert_eq " 1 " "$panes" "toggle adds one flagged viewer pane"
-w=$($T list-panes -t crtest -F '#{@diffpane} #{pane_width}' | awk '$1 == 1 { print $2 }')
+$O send-keys -t o C-b g
+wait_panes s 2
+assert_eq "Diffpane" "$(left_title s)" \
+  "prefix g: viewer pane on the left, found by its title"
+w=$($I list-panes -t s -F '#{pane_title} #{pane_width}' | awk '$1 == "Diffpane" { print $2 }')
 assert_eq "yes" "$([ "$w" -ge 125 ] && [ "$w" -le 140 ] && echo yes)" "viewer pane ~67% wide (got $w)"
-assert_eq "$p" "$($T display -p -t crtest '#{pane_id}')" "focus stays on original pane"
+assert_eq "$p" "$($I display -p -t s '#{pane_id}')" "focus stays on the original pane"
 
-"$DP_HOME/bin/diffpane" toggle "$p"
-assert_eq "1" "$($T list-panes -t crtest | wc -l | tr -d ' ')" "second toggle removes viewer"
+$O send-keys -t o C-b g
+wait_panes s 1
+assert_eq "$p" "$($I list-panes -t s -F '#{pane_id}')" "prefix g again: viewer closed, original pane kept"
 
-"$DP_HOME/bin/diffpane" layout "$r"
-win=$($T display -p -t crtest '#{window_index}')
-assert_eq "2" "$($T list-panes -t "crtest:$win" | wc -l | tr -d ' ')" "layout window has two panes"
-left=$($T list-panes -t "crtest:$win" -F '#{pane_left} #{@diffpane}' | sort -n | head -1 | cut -d' ' -f2)
-assert_eq "1" "$left" "left pane is the viewer"
-assert_eq "tmux" "$($T display -p -t "crtest:$win" '#{window_name}')" "window named after repo dir"
+$O send-keys -t o C-b C
+wait_panes s 2
+assert_eq "tmux" "$($I display -p -t s '#{window_name}')" "prefix C: window named after the repo dir"
+assert_eq "Diffpane" "$(left_title s)" \
+  "prefix C: viewer left"
+assert_eq "cat" "$($I list-panes -t s -F '#{pane_left} #{pane_current_command}' | sort -n | tail -1 | cut -d' ' -f2)" \
+  "prefix C: claude right"
 
 finish

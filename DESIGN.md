@@ -108,15 +108,12 @@ A Claude Code plugin repo: `hooks/`, `bin/`, `lib/`, `themes/`, `tests/`.
      Claude
    - header: `<repo>  ↩|≡ ●|⏸|○` (view Turns, Files; follow on, paused, off) / `<t> turns  <n> files changed`,
      counts right-aligned; diff pane has no file header (the list shows it)
-   - tmux pane title `Diffpane`
+   - terminal title `Diffpane` (OSC 2; tmux's pane title)
    - empty state: `No Claude changes since`, short sha, relative time, full
      subject and body (no trailers), wrapped to the list column
-4. **`diffpane layout`** (`lib/layout`) — tmux helper: opens a new window in the current pane's
-   directory with `diffpane` in the left 67% and `claude` in the right
-   33% pane. A new window, not a split of the current one, so whatever runs
-   in the current pane is left alone.
-5. **`diffpane toggle`** (`lib/toggle`) — tmux helper: create the viewer pane left of the current
-   pane if missing, kill it if present.
+
+Placement is the user's: diffpane doesn't open, size or arrange panes. The
+README has tmux bindings for a toggle and a two-pane layout.
 
 ## Viewer behaviour
 
@@ -176,7 +173,6 @@ Rules:
 |------------------|---------------------------------------------------|
 | `j` / `k`, click | select file                                       |
 | `ctrl-d/u`, wheel| scroll diff                                       |
-| `enter`          | open file in `$EDITOR` in a new tmux window       |
 | `f`              | toggle follow                                     |
 | `w`              | toggle word wrap in the diff                      |
 | `v`              | switch view: Turns / Files                        |
@@ -191,8 +187,8 @@ No search. fzf runs with the query input disabled so `j/k` navigate.
   `PostToolUse`, `PostToolUseFailure` and `Stop` to `hooks/record`. Global,
   so every repo records whether or not a viewer is open; a viewer started
   late still shows everything since the last commit.
-- `bin/diffpane` is linked onto `PATH` by the user (see README); tmux key
-  bindings call `diffpane layout` / `diffpane toggle`.
+- `bin/diffpane` is linked onto `PATH` by the user (see README); the README's
+  tmux key bindings start it.
 
 ## Edge cases
 

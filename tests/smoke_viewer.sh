@@ -14,7 +14,7 @@ wait_for() { # <pattern>: poll the pane for up to 5s
 }
 
 r=$(mkrepo smoke)
-# Fake editor: records the argument it was opened with.
+# Fake editor: records the argument it was opened with (enter must not open it).
 printf '#!/bin/sh\nprintf "%%s" "$1" > "%s/opened"\n' "$TMPROOT" > "$TMPROOT/ed"
 chmod +x "$TMPROOT/ed"
 # Own config whose theme command reads a file the test can switch.
@@ -39,9 +39,9 @@ assert_eq "yes" "$(echo "$out" | grep -q 'already running' && echo yes)" "second
 hook "$r" UserPromptSubmit >/dev/null   # second turn: a divider between posts and a.txt
 tool "$r" t2 sh -c 'seq 60 > "posts.\$id.txt"'
 wait_for 'posts.\$id.txt' || true
-$T send-keys -t crtest Enter
-for i in $(seq 30); do [ -s "$TMPROOT/opened" ] && break; sleep 0.1; done
-assert_eq 'posts.$id.txt' "$(cat "$TMPROOT/opened" 2>/dev/null)" "enter opens a file with \$ in its name"
+$T send-keys -t crtest Enter; sleep 1
+assert_eq "no" "$([ -e "$TMPROOT/opened" ] && echo yes || echo no)" "enter opens nothing"
+wait_for 'posts.\$id.txt' && assert_eq ok ok "enter keeps the viewer running" || assert_eq ok fail "enter keeps the viewer running"
 
 # fzf's selected-row background: 236 in the dark scheme, #eaeef2 in light.
 sel() { $T capture-pane -p -e -t crtest | grep -c -- "$1"; }

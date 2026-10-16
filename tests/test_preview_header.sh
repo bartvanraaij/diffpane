@@ -47,6 +47,22 @@ else
   echo "  skip lighter comment color: diffpane syntax theme not installed (see README)"
 fi
 
+echo "wrap"
+W="$DP_HOME/lib/wrap"
+E=$'\033'
+assert_eq "short │line" "$(printf 'short │line\n' | "$W" 20)" "fits: unchanged"
+assert_eq "$(printf '  1 │aaa bbb \n    │ccc')" "$(printf '  1 │aaa bbb ccc\n' | "$W" 13 | strip)" "breaks at a space, continuation indented past the gutter, digits blanked"
+assert_eq "$(printf 'abcdef\nghij')" "$(printf 'abcdefghij\n' | "$W" 6 | strip)" "no gutter, no spaces: hard break at width"
+out=$(printf '  1 │%s[42maaa bbb ccc%s[0m\n' "$E" "$E" | "$W" 13)
+assert_eq "$(printf '%s[0m\n' "$E")" "$(printf '%s\n' "$out" | sed -n 1p | sed 's/.*bbb //')" "row ends with a reset"
+assert_eq "yes" "$(printf '%s\n' "$out" | sed -n 2p | grep -q "│${E}\[0m${E}\[42mccc" && echo yes)" "colors carry over to the continuation"
+printf '%s\n' "$(printf 'word %.0s' $(seq 1 20))" > "$r/long.txt"
+echo on > "$(state "$r")/wrap"
+rows=$(cd "$r" && FZF_PREVIEW_COLUMNS=30 "$DP_HOME/lib/preview" long.txt | wc -l | tr -d ' ')
+assert_eq "yes" "$([ "$rows" -gt 1 ] && echo yes)" "preview wraps when wrap is on"
+rm -f "$(state "$r")/wrap"
+assert_eq "1" "$(cd "$r" && FZF_PREVIEW_COLUMNS=30 "$DP_HOME/lib/preview" long.txt | wc -l | tr -d ' ')" "and not when off"
+
 echo "header"
 r=$(mkrepo head)
 st=$(state "$r"); mkdir -p "$st"

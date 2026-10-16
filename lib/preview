@@ -27,4 +27,11 @@ base=$(dp_base)
       --plus-style='syntax #2a6a3a' --plus-emph-style='syntax #3f9a55' \
       --minus-style='syntax #7a2a32' --minus-emph-style='syntax #b03a46'
   fi
-} | sed '/./,$!d'  # drop leading empty lines
+} | sed '/./,$!d' | {  # drop leading empty lines
+  # Wrapped here, not by fzf: fzf can't indent continuation rows past the gutter.
+  if [ "$(cat "$DP_STATE/wrap" 2>/dev/null)" = on ]; then
+    "$DP_LIB/wrap" "${FZF_PREVIEW_COLUMNS:-80}"
+  else
+    cat
+  fi
+}

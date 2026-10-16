@@ -77,4 +77,11 @@ hook "$r" UserPromptSubmit >/dev/null
 tool "$r" t4 sh -c 'printf "x\n" >> e.txt'
 assert_eq "off" "$(run on-change a.txt >/dev/null; cat "$st/follow")" "follow switched off with f stays off"
 
+echo "toggle-wrap"
+rm -f "$st/wrap"
+assert_eq "refresh-preview" "$(run toggle-wrap)" "no state -> wrap on"
+assert_eq "on" "$(cat "$st/wrap")" "state on"
+assert_eq "refresh-preview" "$(run toggle-wrap)" "on -> off"
+assert_eq "off" "$(cat "$st/wrap")" "state off"
+
 finish

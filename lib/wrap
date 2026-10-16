@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+# Word-wrap delta output to <width> columns. Continuation rows repeat the
+# line-number gutter (everything up to the first │) with the numbers blanked,
+# so wrapped text lines up with the line it continues. Colors carry over and
+# each row is padded to the full width so diff backgrounds stay filled.
+# Usage: wrap <width>   (stdin -> stdout)
+# Perl, not awk: BSD awk counts bytes, and the gutter has multibyte symbols.
+use strict;
+use utf8;
+use warnings;
+binmode STDIN, ':encoding(UTF-8)';
+binmode STDOUT, ':encoding(UTF-8)';
+
+my $w = shift || 80;
+while (my $line = <STDIN>) {
+  chomp $line;
+  my @tok = $line =~ /(\e\[[0-9;:]*[A-Za-z]|\e\][^\e]*\e\\|.)/gs;
+  my @vi = grep { $tok[$_] !~ /^\e/ } 0 .. $#tok;    # visible tokens
+  if (@vi <= $w) { print "$line\n"; next; }
+
+  # Gutter: up to the first │ in the first 20 columns, if it leaves room.
+  my $g = 0;
+  for my $k (0 .. ($#vi < 20 ? $#vi : 20)) {
+    if ($tok[$vi[$k]] eq '│') { $g = $k + 1; last; }
+  }
+  $g = 0 if $g > $w / 2;
+  my $gut = $g ? join '', map { /^\e/ ? $_ : /\d/ ? ' ' : $_ } @tok[0 .. $vi[$g - 1]] : '';
+
+  # Row starts (indexes into @vi): break after the last space that fits,
+  # unless that leaves less than half a row; then break mid-word.
+  my %start;
+  my ($p, $cap) = (0, $w);
+  while (@vi - $p > $cap) {
+    my $end = $p + $cap;
+    my $b = $end;
+    my $min = ($p ? $p : $g) + int(($cap - ($p ? 0 : $g)) / 2);
+    for (my $k = $end; $k > $min; $k--) {
+      if ($tok[$vi[$k - 1]] eq ' ') { $b = $k; last; }
+    }
+    $start{$vi[$b]} = 1;
+    ($p, $cap) = ($b, $w - $g);
+  }
+
+  my ($sgr, $col, $out) = ('', 0, '');
+  for my $i (0 .. $#tok) {
+    my $t = $tok[$i];
+    if ($start{$i}) {
+      $out .= ' ' x ($w - $col) . "\e[0m\n$gut\e[0m$sgr";
+      $col = $g;
+    }
+    if ($t =~ /^\e\[([0-9;]*)m$/) {
+      $sgr = ($1 eq '' || $1 eq '0') ? '' : $sgr . $t;
+    } elsif ($t !~ /^\e/) {
+      $col++;
+    }
+    $out .= $t;
+  }
+  print "$out\n";
+}

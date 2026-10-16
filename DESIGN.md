@@ -138,6 +138,7 @@ A Claude Code plugin repo: `hooks/`, `bin/`, `lib/`, `themes/`, `tests/`.
 | `ctrl-d/u`, wheel| scroll diff                                       |
 | `enter`          | open file in `$EDITOR` in a new tmux window       |
 | `f`              | toggle follow                                     |
+| `w`              | toggle word wrap in the diff                      |
 | `r`              | manual reload                                     |
 | `q`              | quit                                              |
 

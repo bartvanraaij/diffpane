@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# fzf 'w' key: wrap long lines in the diff on/off. preview does the wrapping
+# (lib/wrap); the state file also survives the fzf restart on a theme switch.
+. "$(dirname "$0")/common.sh"
+
+dp_init "$PWD" || exit 0
+if [ "$(cat "$DP_STATE/wrap" 2>/dev/null)" = on ]; then
+  echo off > "$DP_STATE/wrap"
+else
+  echo on > "$DP_STATE/wrap"
+fi
+echo 'refresh-preview'

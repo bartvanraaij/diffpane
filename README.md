@@ -66,6 +66,7 @@ Claude changed since the last commit, even if it was started late.
 | `ctrl-d` / `ctrl-u`, wheel | scroll the diff                      |
 | `enter`            | open the file in `$EDITOR` (new tmux window) |
 | `f`                | follow on/off                                |
+| `w`                | wrap long lines in the diff on/off           |
 | `r`                | reload                                       |
 | `q`                | quit                                         |
 
@@ -134,7 +135,8 @@ tests/bench.sh          # hook latency
 To work on a local checkout, add it as the marketplace instead
 (`claude plugin marketplace add ~/path/to/diffpane`). Claude Code then reads the
 hooks straight from that folder; edits apply at the next session start or after
-`/reload-plugins`.
+`/reload-plugins`. Viewer edits (`bin/`, `lib/`) apply when you restart the
+viewer.
 
 ## License
 

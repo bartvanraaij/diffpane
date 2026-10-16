@@ -8,7 +8,7 @@ Claude Code plugin + fzf/delta viewer. Read `DESIGN.md` for how it works and
 - `hooks/record` — hook entry point (all five events, see `hooks/hooks.json`)
 - `bin/diffpane` — viewer; dispatches `toggle` / `layout` to `lib/`
 - `lib/common.sh` — shared helpers, prefix `dp_` / `DP_`
-- `lib/*` — fzf actions (`list`, `preview`, `header`, `on-change`, `on-focus`, `toggle-follow`) and tmux helpers
+- `lib/*` — fzf actions (`list`, `preview`, `header`, `on-change`, `on-focus`, `toggle-follow`, `toggle-wrap`), `wrap` (perl: wraps the diff past the line-number gutter) and tmux helpers
 - `.claude-plugin/` — plugin manifest and marketplace entry
 
 ## Constraints
@@ -38,5 +38,8 @@ Claude Code plugin + fzf/delta viewer. Read `DESIGN.md` for how it works and
 - Smoke tests poll for end states (`wait_for`); don't assert on the first frame
   after an async fzf action.
 - `claude plugin validate .` after touching `.claude-plugin/` or `hooks/`.
-- With a local-directory marketplace, edits apply at the next Claude session
+- Viewer edits apply at the next viewer start. Hooks: with a local-directory
+  marketplace they run from the checkout (`installPath` in
+  `installed_plugins.json` and `~/.claude/plugins/cache/diffpane/` are a stale,
+  unused copy). Hook edits apply at the next Claude session
   or `/reload-plugins`.
